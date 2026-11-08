@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bible Study Commentary</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: one reading column. Search bar pinned on top, the passage set like a printed Bible page,
+   then three commentary rows that open in place. Wider screens get more air and a larger type size. */
+:root {
+  --paper: #f4f5f1;
+  --surface: #ffffff;
+  --ink: #1c2230;
+  --muted: #5d6474;
+  --line: #dfe2dc;
+  --accent: #2d4a7a;
+  --accent-ink: #ffffff;
+  --red: #a8261d;
+  --ew: #7a3b2e;
+  --br: #2d6a8a;
+  --mh: #4d6b3a;
+  --chip: #eef0ea;
+  --font-scripture: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --font-ui: "Figtree", -apple-system, "Segoe UI", Roboto, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #14171e; --surface: #1c2029; --ink: #e7e9ee; --muted: #9aa1b0; --line: #2d3240;
+    --accent: #8fb0e8; --accent-ink: #10141c; --red: #ef8a7f; --ew: #d9937f; --br: #7fbcd9; --mh: #a5c78e;
+    --chip: #252a35; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #14171e; --surface: #1c2029; --ink: #e7e9ee; --muted: #9aa1b0; --line: #2d3240;
+  --accent: #8fb0e8; --accent-ink: #10141c; --red: #ef8a7f; --ew: #d9937f; --br: #7fbcd9; --mh: #a5c78e;
+  --chip: #252a35; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+}
+a { color: var(--accent); }
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- top bar ---------- */
+.bar {
+  position: sticky; top: 0; z-index: 5;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line);
+  padding: calc(env(safe-area-inset-top) + 12px) max(16px, env(safe-area-inset-right)) 12px max(16px, env(safe-area-inset-left));
+}
+.bar-inner { max-width: 760px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.brand { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.brand h1 { font-size: 15px; font-weight: 700; letter-spacing: .02em; margin: 0; color: var(--muted); text-transform: uppercase; }
+.search { display: flex; gap: 8px; }
+.search input {
+  flex: 1; min-width: 0;
+  padding: 11px 14px;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: var(--surface);
+  font-size: 17px;
+}
+.search input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+.btn {
+  border: 0; border-radius: 10px; padding: 0 18px; min-height: 44px;
+  background: var(--accent); color: var(--accent-ink); font-weight: 600; cursor: pointer;
+}
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.seg button { border: 0; background: none; padding: 5px 12px; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; min-height: 32px; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.hint { font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.hint button { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 3px 10px; font-size: 13px; cursor: pointer; }
+.error { color: var(--red); font-size: 14px; margin: 0; }
+.error:empty { display: none; }
+
+/* ---------- passage ---------- */
+main { max-width: 760px; margin: 0 auto; padding: 24px max(16px, env(safe-area-inset-left)) calc(48px + env(safe-area-inset-bottom)); display: grid; gap: 28px; }
+.passage { display: grid; gap: 12px; }
+.ref { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.ref h2 { font-family: var(--font-scripture); font-weight: 600; font-size: 30px; line-height: 1.15; margin: 0; text-wrap: balance; }
+.ref .tr { font-size: 13px; color: var(--muted); font-weight: 600; letter-spacing: .04em; }
+.scripture { font-family: var(--font-scripture); font-size: 19px; line-height: 1.7; max-width: 65ch; }
+.scripture p { margin: 0 0 .6em; }
+.chap-mark { display: block; font-family: var(--font-ui); font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; margin: 1em 0 .3em; }
+sup.v { font-family: var(--font-ui); font-size: 11px; font-weight: 700; color: var(--muted); margin-right: 3px; vertical-align: super; line-height: 0; font-variant-numeric: tabular-nums; }
+.jesus { color: var(--red); }
+.loading { color: var(--muted); font-size: 15px; }
+
+/* ---------- commentary rows ---------- */
+.comms { display: grid; gap: 10px; }
+.comms-h { font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0 0 2px; }
+details.c {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--stripe);
+  border-radius: 10px;
+}
+details.c > summary {
+  list-style: none; cursor: pointer;
+  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px;
+  padding: 14px 16px; min-height: 56px;
+}
+details.c > summary::-webkit-details-marker { display: none; }
+.c-name { font-weight: 600; font-size: 17px; }
+.c-by { font-size: 13px; color: var(--muted); }
+.chev { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--chip); color: var(--stripe); transition: transform .2s; }
+details[open] .chev { transform: rotate(180deg); }
+.c-body { padding: 4px 16px 18px; border-top: 1px solid var(--line); display: grid; gap: 14px; }
+.c-body p { margin: 0; }
+.note-sec { display: grid; gap: 4px; }
+.note-sec h4 { margin: 10px 0 0; font-size: 13px; font-weight: 700; color: var(--stripe); letter-spacing: .03em; }
+.note-sec p { font-family: var(--font-scripture); font-size: 17px; line-height: 1.65; max-width: 65ch; }
+.note-sec h5 { margin: 8px 0 0; font-size: 15px; font-weight: 700; }
+.mh-part, .mh-full { display: grid; gap: 10px; }
+[hidden] { display: none !important; }
+.more { justify-self: start; border: 1px solid var(--line); background: var(--chip); color: var(--ink); border-radius: 8px; padding: 8px 12px; min-height: 40px; font-size: 14px; font-weight: 600; cursor: pointer; }
+.outline { font-size: 14px; color: var(--muted); background: var(--chip); border-radius: 8px; padding: 10px 12px; }
+.links { display: flex; flex-wrap: wrap; gap: 8px; }
+.link-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 14px; border-radius: 8px; min-height: 40px;
+  background: var(--stripe); color: var(--surface); text-decoration: none; font-weight: 600; font-size: 15px;
+  justify-self: start;
+}
+.verse-links { display: flex; flex-wrap: wrap; gap: 6px; }
+.verse-links a {
+  min-width: 40px; min-height: 36px; padding: 6px 8px; text-align: center;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--chip);
+  color: var(--ink); text-decoration: none; font-size: 14px; font-variant-numeric: tabular-nums;
+}
+.small { font-size: 13px; color: var(--muted); }
+
+@media (min-width: 900px) {
+  .ref h2 { font-size: 36px; }
+  .scripture { font-size: 20px; }
+  main { padding-top: 36px; gap: 36px; }
+}
+@media (max-width: 599px) { .bar { position: static; } }
+@media (prefers-reduced-motion: reduce) { .chev { transition: none; } }
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="bar-inner">
+    <div class="brand">
+      <h1>Bible Study Commentary</h1>
+      <div class="seg" role="group" aria-label="Translation">
+        <button type="button" id="tr-kjv" data-tr="kjv" aria-pressed="true">KJV</button>
+        <button type="button" id="tr-web" data-tr="web" aria-pressed="false">WEB</button>
+      </div>
+    </div>
+    <form class="search" id="search-form" autocomplete="off">
+      <label for="q" class="sr" style="position:absolute;left:-9999px">Passage</label>
+      <input id="q" name="q" type="search" inputmode="text" placeholder="e.g. John 3:16-36" enterkeyhint="search" spellcheck="false" autocapitalize="words">
+      <button class="btn" type="submit" id="go">Show</button>
+    </form>
+    <p class="error" id="err"></p>
+    <div class="hint">Try:
+      <button type="button" data-q="John 3:16-36">John 3:16-36</button>
+      <button type="button" data-q="Psalm 23">Psalm 23</button>
+      <button type="button" data-q="Romans 8:28-39">Romans 8:28-39</button>
+      <button type="button" data-q="1 Cor 13:4-7">1 Cor 13:4-7</button>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+  <section class="passage" aria-live="polite">
+    <div class="ref"><h2 id="ref">John 3:16–36</h2><span class="tr" id="tr-label">KING JAMES VERSION</span></div>
+    <div class="scripture" id="text"><p class="loading">Loading the passage…</p></div>
+  </section>
+
+  <section class="comms" aria-label="Commentaries">
+    <p class="comms-h">Commentaries</p>
+
+    <details class="c" id="c-ew" style="--stripe: var(--ew)">
+      <summary>
+        <span><span class="c-name">Enduring Word</span><br><span class="c-by">David Guzik</span></span>
+        <span class="chev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M3 5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </summary>
+      <div class="c-body" id="ew-body"></div>
+    </details>
+
+    <details class="c" id="c-br" style="--stripe: var(--br)">
+      <summary>
+        <span><span class="c-name">BibleRef</span><br><span class="c-by">BibleRef.com verse-by-verse commentary</span></span>
+        <span class="chev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M3 5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </summary>
+      <div class="c-body" id="br-body"></div>
+    </details>
+
+    <details class="c" id="c-mh" style="--stripe: var(--mh)">
+      <summary>
+        <span><span class="c-name">Matthew Henry</span><br><span class="c-by">Commentary on the Whole Bible (complete)</span></span>
+        <span class="chev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M3 5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </summary>
+      <div class="c-body" id="mh-body"></div>
+    </details>
+  </section>
+</main>
+
+<script>
+const INDEX = __INDEX__;
+
+/* ---------- book name lookup ---------- */
+const ALIASES = {
+  gen:'Genesis',ge:'Genesis',gn:'Genesis',ex:'Exodus',exo:'Exodus',exod:'Exodus',lev:'Leviticus',lv:'Leviticus',num:'Numbers',nu:'Numbers',nm:'Numbers',
+  deut:'Deuteronomy',dt:'Deuteronomy',deu:'Deuteronomy',josh:'Joshua',jos:'Joshua',judg:'Judges',jdg:'Judges',jg:'Judges',ru:'Ruth',rth:'Ruth',
+  '1sam':'1 Samuel','1sa':'1 Samuel','2sam':'2 Samuel','2sa':'2 Samuel','1kgs':'1 Kings','1ki':'1 Kings','2kgs':'2 Kings','2ki':'2 Kings',
+  '1chr':'1 Chronicles','1ch':'1 Chronicles','2chr':'2 Chronicles','2ch':'2 Chronicles',neh:'Nehemiah',ne:'Nehemiah',est:'Esther',esth:'Esther',
+  jb:'Job',ps:'Psalms',psa:'Psalms',psalm:'Psalms',pss:'Psalms',prov:'Proverbs',pr:'Proverbs',prv:'Proverbs',eccl:'Ecclesiastes',ecc:'Ecclesiastes',qoh:'Ecclesiastes',
+  song:'Song of Solomon',sos:'Song of Solomon',ss:'Song of Solomon',songofsongs:'Song of Solomon',canticles:'Song of Solomon',
+  isa:'Isaiah',is:'Isaiah',jer:'Jeremiah',je:'Jeremiah',lam:'Lamentations',ezek:'Ezekiel',eze:'Ezekiel',ezk:'Ezekiel',dan:'Daniel',dn:'Daniel',
+  hos:'Hosea',jl:'Joel',am:'Amos',obad:'Obadiah',ob:'Obadiah',jon:'Jonah',jnh:'Jonah',mic:'Micah',nah:'Nahum',hab:'Habakkuk',zeph:'Zephaniah',zep:'Zephaniah',
+  hag:'Haggai',zech:'Zechariah',zec:'Zechariah',mal:'Malachi',mt:'Matthew',matt:'Matthew',mat:'Matthew',mk:'Mark',mrk:'Mark',mar:'Mark',lk:'Luke',luk:'Luke',
+  jn:'John',jhn:'John',joh:'John',ac:'Acts',act:'Acts',rom:'Romans',ro:'Romans',rm:'Romans','1cor':'1 Corinthians','1co':'1 Corinthians','2cor':'2 Corinthians','2co':'2 Corinthians',
+  gal:'Galatians',ga:'Galatians',eph:'Ephesians',phil:'Philippians',php:'Philippians',pp:'Philippians',col:'Colossians',
+  '1thess':'1 Thessalonians','1th':'1 Thessalonians','2thess':'2 Thessalonians','2th':'2 Thessalonians','1tim':'1 Timothy','1ti':'1 Timothy','2tim':'2 Timothy','2ti':'2 Timothy',
+  tit:'Titus',phlm:'Philemon',phm:'Philemon',philem:'Philemon',heb:'Hebrews',jas:'James',jm:'James','1pet':'1 Peter','1pe':'1 Peter','1pt':'1 Peter','2pet':'2 Peter','2pe':'2 Peter','2pt':'2 Peter',
+  '1jn':'1 John','1jo':'1 John','1john':'1 John','2jn':'2 John','2jo':'2 John','3jn':'3 John','3jo':'3 John',jud:'Jude',jude:'Jude',rev:'Revelation',re:'Revelation',rv:'Revelation',revelations:'Revelation'
+};
+const BY_NAME = {};
+INDEX.forEach((b, i) => { b.i = i; BY_NAME[b.name] = b; });
+function normBook(s) {
+  return s.toLowerCase().replace(/^(iii|ii|i)\s+/, m => ({'i ':'1','ii ':'2','iii ':'3'}[m.trim() + ' '])).replace(/^(first|1st)\s+/, '1').replace(/^(second|2nd)\s+/, '2').replace(/^(third|3rd)\s+/, '3').replace(/[\s.]/g, '');
+}
+function findBook(raw) {
+  const k = normBook(raw);
+  if (!k) return null;
+  for (const b of INDEX) if (normBook(b.name) === k) return b;
+  if (ALIASES[k]) return BY_NAME[ALIASES[k]];
+  const pref = INDEX.filter(b => normBook(b.name).startsWith(k));
+  if (pref.length === 1 || (pref.length && k.length >= 3)) return pref[0];
+  return null;
+}
+
+/* ---------- reference parsing ----------
+   "John 3:16-36", "Jn 3:16", "John 3", "John 3-4", "John 3:16-4:2", "Psalm 23" */
+function parseRef(input) {
+  const s = input.trim().replace(/[–—]/g, '-').replace(/\s+/g, ' ');
+  const m = s.match(/^((?:[123]|i{1,3})?\s*[a-z][a-z .]*?)\s*(\d+)(?::(\d+))?(?:\s*-\s*(\d+)(?::(\d+))?)?$/i);
+  if (!m) return { error: 'Type a book, chapter and verses, like "John 3:16-36".' };
+  const book = findBook(m[1]);
+  if (!book) return { error: `I couldn't find a book called "${m[1].trim()}".` };
+  const nch = book.chapters.length;
+  let c1 = +m[2], v1 = m[3] ? +m[3] : null, c2, v2;
+  if (book.chapters.length === 1 && !m[3] && !m[4] && c1 > 1) { v1 = c1; c1 = 1; } // "Jude 3"
+  if (m[4] && m[5]) { c2 = +m[4]; v2 = +m[5]; }
+  else if (m[4]) { if (v1 != null) { c2 = c1; v2 = +m[4]; } else { c2 = +m[4]; v2 = null; } }
+  else { c2 = c1; v2 = v1; }
+  if (c1 < 1 || c1 > nch) return { error: `${book.name} has ${nch} chapter${nch > 1 ? 's' : ''}.` };
+  if (c2 < c1 || c2 > nch) return { error: `${book.name} has ${nch} chapters. Check the end of the range.` };
+  if (v1 == null) v1 = 1;
+  if (v2 == null) v2 = book.chapters[c2 - 1];
+  if (v1 > book.chapters[c1 - 1]) return { error: `${book.name} ${c1} has ${book.chapters[c1 - 1]} verses.` };
+  v2 = Math.min(v2, book.chapters[c2 - 1]);
+  if (c1 === c2 && v2 < v1) return { error: 'The end verse comes before the start verse.' };
+  return { book, c1, v1, c2, v2 };
+}
+function refLabel(r) {
+  const full1 = r.v1 === 1, full2 = r.v2 === r.book.chapters[r.c2 - 1];
+  const nm = r.book.name === 'Psalms' && r.c1 === r.c2 ? 'Psalm' : r.book.name;
+  if (r.book.chapters.length === 1) return r.v1 === r.v2 ? `${nm} ${r.v1}` : (full1 && full2 ? nm : `${nm} ${r.v1}–${r.v2}`);
+  if (r.c1 === r.c2) {
+    if (full1 && full2) return `${nm} ${r.c1}`;
+    return r.v1 === r.v2 ? `${nm} ${r.c1}:${r.v1}` : `${nm} ${r.c1}:${r.v1}–${r.v2}`;
+  }
+  if (full1 && full2) return `${nm} ${r.c1}–${r.c2}`;
+  return `${nm} ${r.c1}:${r.v1}–${r.c2}:${r.v2}`;
+}
+function refHash(r) { return [r.book.slug, r.c1, r.v1, r.c2, r.v2].join('-'); }
+function hashToRef(h) {
+  const m = h.match(/^([a-z0-9-]+?)-(\d+)-(\d+)-(\d+)-(\d+)$/);
+  if (!m) return null;
+  const book = INDEX.find(b => b.slug === m[1]);
+  if (!book) return null;
+  const r = { book, c1: +m[2], v1: +m[3], c2: +m[4], v2: +m[5] };
+  if (r.c1 < 1 || r.c2 > book.chapters.length || r.c2 < r.c1) return null;
+  return r;
+}
+
+/* ---------- data ---------- */
+const cache = new Map();
+function loadBook(book) {
+  if (!cache.has(book.slug)) {
+    cache.set(book.slug, fetch(`data/${book.slug}.json`).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .catch(e => { cache.delete(book.slug); throw e; }));
+  }
+  return cache.get(book.slug);
+}
+
+/* ---------- rendering ---------- */
+const $ = id => document.getElementById(id);
+const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let translation = 'kjv';
+try { const t = localStorage.getItem('bsc-tr'); if (t === 'web' || t === 'kjv') translation = t; } catch (e) {}
+let current = null, currentData = null;
+
+function verseHtml(t) {
+  //  …  mark the words of Jesus
+  let out = '', open = false;
+  for (const part of t.split(/([])/)) {
+    if (part === '') { if (!open) { out += '<span class="jesus">'; open = true; } }
+    else if (part === '') { if (open) { out += '</span>'; open = false; } }
+    else out += esc(part);
+  }
+  return out + (open ? '</span>' : '');
+}
+
+function chaptersIn(r) { const a = []; for (let c = r.c1; c <= r.c2; c++) a.push(c); return a; }
+function rangeIn(r, c) {
+  return [c === r.c1 ? r.v1 : 1, c === r.c2 ? r.v2 : r.book.chapters[c - 1]];
+}
+
+function renderText() {
+  const r = current, d = currentData;
+  const multi = r.c1 !== r.c2;
+  let html = '';
+  for (const c of chaptersIn(r)) {
+    const verses = d[translation][c] || [];
+    const [a, b] = rangeIn(r, c);
+    if (multi) html += `<span class="chap-mark">Chapter ${c}</span>`;
+    html += '<p>';
+    for (let v = a; v <= b; v++) {
+      const t = verses[v - 1];
+      if (!t) continue;
+      html += `<sup class="v">${v}</sup>${verseHtml(t)} `;
+    }
+    html += '</p>';
+  }
+  $('text').innerHTML = html;
+  $('tr-label').textContent = translation === 'kjv' ? 'KING JAMES VERSION' : 'WORLD ENGLISH BIBLE';
+}
+
+function ewSlug(book, c) {
+  const n = book.name === 'Psalms' ? 'psalm' : book.name.toLowerCase().replace(/\s+/g, '-');
+  return `https://enduringword.com/bible-commentary/${n}-${c}/`;
+}
+function brBook(book) { return book.name.replace(/\s+/g, '-'); }
+
+function renderEW() {
+  const r = current, cs = chaptersIn(r);
+  const parts = cs.map(c => {
+    const [a, b] = rangeIn(r, c);
+    const span = (a === 1 && b === r.book.chapters[c - 1]) ? 'the whole chapter' : (a === b ? `verse ${a}` : `verses ${a}–${b}`);
+    return `<a class="link-btn" href="${ewSlug(r.book, c)}" target="_blank" rel="noopener">Read ${esc(r.book.name === 'Psalms' ? 'Psalm' : r.book.name)} ${c} on Enduring Word ↗</a>
+      <p class="small">For ${span}, look for Guzik's headings whose verse numbers in brackets fall in that range.</p>`;
+  }).join('');
+  $('ew-body').innerHTML = `<p>David Guzik publishes his commentary one chapter per page on Enduring Word. It opens on their site.</p><div class="links" style="display:grid;gap:6px">${parts}</div>`;
+}
+
+function renderBR() {
+  const r = current, B = brBook(r.book);
+  const blocks = chaptersIn(r).map(c => {
+    const [a, b] = rangeIn(r, c);
+    let chips = '';
+    for (let v = a; v <= b; v++) chips += `<a href="https://www.bibleref.com/${B}/${c}/${B}-${c}-${v}.html" target="_blank" rel="noopener" aria-label="${esc(r.book.name)} ${c}:${v} on BibleRef">${c}:${v}</a>`;
+    return `<div style="display:grid;gap:8px">
+      <a class="link-btn" href="https://www.bibleref.com/${B}/${c}/${B}-chapter-${c}.html" target="_blank" rel="noopener">${esc(r.book.name)} ${c} overview ↗</a>
+      <div class="verse-links">${chips}</div></div>`;
+  }).join('');
+  $('br-body').innerHTML = `<p>BibleRef writes a short explanation for each verse, published on BibleRef.com. Tap a verse to open its notes.</p>${blocks}`;
+}
+
+const mhCache = new Map();
+function loadMH(book) {
+  if (!mhCache.has(book.slug)) {
+    mhCache.set(book.slug, fetch(`data/mhc-${book.slug}.json`).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .catch(e => { mhCache.delete(book.slug); throw e; }));
+  }
+  return mhCache.get(book.slug);
+}
+function paraHtml(p) {
+  return p[3] ? `<h5>${esc(p[2])}</h5>` : `<p>${esc(p[2])}</p>`;
+}
+async function renderMH() {
+  const r = current;
+  $('mh-body').innerHTML = '<p class="small">Loading Matthew Henry…</p>';
+  let d;
+  try { d = await loadMH(r.book); } catch (e) {
+    $('mh-body').innerHTML = '<p class="error">Matthew Henry could not be loaded. Check your connection and press Show again.</p>'; return;
+  }
+  if (current !== r) return;
+  const nm = r.book.name === 'Psalms' ? 'Psalm' : r.book.name;
+  let html = '', found = 0;
+  for (const c of chaptersIn(r)) {
+    const units = d[c] || [];
+    const [a, b] = rangeIn(r, c);
+    const whole = a === 1 && b === r.book.chapters[c - 1];
+    for (const u of units) {
+      if (u.k === 'c') {
+        if (whole) html += `<div class="outline"><strong>${esc(nm)} ${c} outline:</strong> ${u.p.map(p => esc(p[2])).join(' ')}</div>`;
+        continue;
+      }
+      if (u.s > b || u.e < a) continue;
+      const keep = u.p.filter(p => p[0] <= b && p[1] >= a);
+      const span = u.s === u.e ? `${c}:${u.s}` : `${c}:${u.s}–${u.e}`;
+      const trimmed = keep.length < u.p.length;
+      found++;
+      html += `<div class="note-sec">
+        <h4>${esc(nm)} ${span}${u.t ? ' · ' + esc(u.t) : ''}</h4>
+        <div class="mh-part">${(keep.length ? keep : u.p).map(paraHtml).join('')}</div>
+        ${trimmed && keep.length ? `<div class="mh-full" hidden>${u.p.map(paraHtml).join('')}</div>
+        <button type="button" class="more" data-span="${span}">Show Henry's notes on all of ${span}</button>` : ''}
+      </div>`;
+    }
+  }
+  if (!found) html += '<p class="small">Matthew Henry has no note for this passage.</p>';
+  html += '<p class="small">Matthew Henry, <em>Commentary on the Whole Bible</em> (1708–1710), public domain. Notes are cut where Henry moves past your verses, using his own markers such as “v. 18”.</p>';
+  $('mh-body').innerHTML = html;
+}
+document.addEventListener('click', e => {
+  const btn = e.target.closest('button.more');
+  if (!btn) return;
+  const sec = btn.closest('.note-sec');
+  const part = sec.querySelector('.mh-part'), full = sec.querySelector('.mh-full');
+  const showFull = full.hidden;
+  full.hidden = !showFull; part.hidden = showFull;
+  btn.textContent = showFull ? 'Show only the notes on your verses' : `Show Henry's notes on all of ${btn.dataset.span}`;
+});
+
+async function show(r, push = true) {
+  current = r;
+  $('err').textContent = '';
+  $('ref').textContent = refLabel(r);
+  document.title = `${refLabel(r)} · Bible Study Commentary`;
+  $('q').value = refLabel(r).replace('–', '-');
+  if (push) { try { history.replaceState(null, '', '#' + refHash(r)); } catch (e) { location.hash = refHash(r); } }
+  $('text').innerHTML = '<p class="loading">Loading the passage…</p>';
+  renderMH();
+  try {
+    const d = await loadBook(r.book);
+    if (current !== r) return;
+    currentData = d;
+    renderText(); renderEW(); renderBR();
+  } catch (e) {
+    $('text').innerHTML = '<p class="error">The passage could not be loaded. Check your connection and press Show again.</p>';
+  }
+}
+
+function setTranslation(t) {
+  translation = t;
+  try { localStorage.setItem('bsc-tr', t); } catch (e) {}
+  document.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tr === t)));
+  if (currentData) renderText();
+}
+
+$('search-form').addEventListener('submit', e => {
+  e.preventDefault();
+  const r = parseRef($('q').value);
+  if (r.error) { $('err').textContent = r.error; return; }
+  $('q').blur();
+  show(r);
+});
+document.querySelectorAll('.hint button').forEach(b => b.addEventListener('click', () => { $('q').value = b.dataset.q; $('search-form').requestSubmit(); }));
+document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => setTranslation(b.dataset.tr)));
+window.addEventListener('hashchange', () => { const r = hashToRef(location.hash.slice(1)); if (r) show(r, false); });
+
+setTranslation(translation);
+show(hashToRef(location.hash.slice(1)) || parseRef('John 3:16-36'), false);
+</script>
+</body>
+</html>
