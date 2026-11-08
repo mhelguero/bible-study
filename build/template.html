@@ -141,6 +141,13 @@ details[open] .chev { transform: rotate(180deg); }
   color: var(--ink); text-decoration: none; font-size: 14px; font-variant-numeric: tabular-nums;
 }
 .small { font-size: 13px; color: var(--muted); }
+.ew-chap { display: grid; gap: 8px; }
+.ew-chap + .ew-chap { margin-top: 14px; }
+.ew-chap h5 { margin: 0; font-size: 15px; font-weight: 700; }
+.ew-frame {
+  width: 100%; height: 75vh; min-height: 480px; max-height: 1100px;
+  border: 1px solid var(--line); border-radius: 8px; background: #fff; display: block;
+}
 
 @media (min-width: 900px) {
   .ref h2 { font-size: 36px; }
@@ -352,14 +359,26 @@ function brBook(book) { return book.name.replace(/\s+/g, '-'); }
 
 function renderEW() {
   const r = current, cs = chaptersIn(r);
+  const label = r.book.name === 'Psalms' ? 'Psalm' : r.book.name;
   const parts = cs.map(c => {
     const [a, b] = rangeIn(r, c);
     const span = (a === 1 && b === r.book.chapters[c - 1]) ? 'the whole chapter' : (a === b ? `verse ${a}` : `verses ${a}–${b}`);
-    return `<a class="link-btn" href="${ewSlug(r.book, c)}" target="_blank" rel="noopener">Read ${esc(r.book.name === 'Psalms' ? 'Psalm' : r.book.name)} ${c} on Enduring Word ↗</a>
-      <p class="small">For ${span}, look for Guzik's headings whose verse numbers in brackets fall in that range.</p>`;
+    const url = ewSlug(r.book, c);
+    return `<div class="ew-chap">
+      ${cs.length > 1 ? `<h5>${esc(label)} ${c}</h5>` : ''}
+      <p class="small">For ${span}, look for Guzik's headings whose verse numbers in brackets fall in that range.</p>
+      <iframe class="ew-frame" data-src="${url}" title="Enduring Word commentary on ${esc(label)} ${c}" referrerpolicy="no-referrer-when-downgrade"></iframe>
+      <a class="link-btn" href="${url}" target="_blank" rel="noopener">Open ${esc(label)} ${c} on Enduring Word ↗</a>
+    </div>`;
   }).join('');
-  $('ew-body').innerHTML = `<p>David Guzik publishes his commentary one chapter per page on Enduring Word. It opens on their site.</p><div class="links" style="display:grid;gap:6px">${parts}</div>`;
+  $('ew-body').innerHTML = `<p class="small">David Guzik's commentary, shown from enduringword.com. If it doesn't load, use the button below it.</p>${parts}`;
+  if ($('c-ew').open) loadEW();
 }
+// Only load the (heavy) Enduring Word page when its row is actually open.
+function loadEW() {
+  $('ew-body').querySelectorAll('iframe[data-src]').forEach(f => { f.src = f.dataset.src; f.removeAttribute('data-src'); });
+}
+$('c-ew').addEventListener('toggle', () => { if ($('c-ew').open) loadEW(); });
 
 function renderBR() {
   const r = current, B = brBook(r.book);
