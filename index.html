@@ -87,8 +87,6 @@ button, input { font: inherit; color: inherit; }
   background-repeat: no-repeat; background-position: right 10px center;
 }
 .tr-pick select:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
-.hint { font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.hint button { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 3px 10px; font-size: 13px; cursor: pointer; }
 .error { color: var(--red); font-size: 14px; margin: 0; }
 .qwrap { position: relative; flex: 1; min-width: 0; display: flex; }
 .qwrap input { flex: 1; min-width: 0; }
@@ -143,6 +141,16 @@ sup.v { font-family: var(--font-ui); font-size: 11px; font-weight: 700; color: v
 
 /* ---------- commentary rows ---------- */
 .comms { display: grid; gap: 10px; }
+.vnav { display: flex; justify-content: space-between; gap: 8px; }
+.vnav button {
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 8px;
+  min-height: 40px; padding: 8px 12px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+}
+.vnav button:disabled { visibility: hidden; }
+.vnav .next { margin-left: auto; }
+/* Bible Hub has no dark mode of its own: invert its page (and turn photos back) when this app is dark. */
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .bh-frame { filter: invert(.9) hue-rotate(180deg); background: #fff; } }
+:root[data-theme="dark"] .bh-frame { filter: invert(.9) hue-rotate(180deg); background: #fff; }
 .comms-h { font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0 0 2px; }
 details.c {
   background: var(--surface);
@@ -225,12 +233,6 @@ details[open] .chev { transform: rotate(180deg); }
       <button class="btn" type="submit" id="go">Show</button>
     </form>
     <p class="error" id="err"></p>
-    <div class="hint">Try:
-      <button type="button" data-q="John 3:16-36">John 3:16-36</button>
-      <button type="button" data-q="Psalm 23">Psalm 23</button>
-      <button type="button" data-q="Romans 8:28-39">Romans 8:28-39</button>
-      <button type="button" data-q="1 Cor 13:4-7">1 Cor 13:4-7</button>
-    </div>
   </div>
 </header>
 
@@ -244,6 +246,7 @@ details[open] .chev { transform: rotate(180deg); }
 
   <section class="comms" aria-label="Commentaries">
     <p class="comms-h">Commentaries</p>
+    <nav class="vnav" aria-label="Previous and next verse"></nav>
 
     <details class="c" id="c-ew" style="--stripe: var(--ew)">
       <summary>
@@ -268,6 +271,7 @@ details[open] .chev { transform: rotate(180deg); }
       </summary>
       <div class="c-body" id="mh-body"></div>
     </details>
+    <nav class="vnav" aria-label="Previous and next verse"></nav>
   </section>
 </main>
 
@@ -493,7 +497,7 @@ function renderBH() {
   const url = bhUrl(r.book, c, r.v1);
   $('bh-body').innerHTML = `<p class="small">Classic commentaries on one verse at a time, shown from biblehub.com. Pick a verse:</p>
     <div class="ew-jumps bh-verses">${chips}</div>
-    <iframe class="ew-frame" data-src="${url}" title="Bible Hub commentaries on ${esc(label)} ${c}"></iframe>
+    <iframe class="ew-frame bh-frame" data-src="${url}" title="Bible Hub commentaries on ${esc(label)} ${c}"></iframe>
     <a class="link-btn" href="${url}" target="_blank" rel="noopener">Open ${esc(label)} ${c}:${r.v1} on Bible Hub ↗</a>`;
   if ($('c-bh').open) loadBH();
 }
@@ -506,6 +510,28 @@ $('bh-body').addEventListener('click', e => {
   const a = $('bh-body').querySelector('a.link-btn'); a.href = url;
   a.textContent = `Open ${r.book.name === 'Psalms' ? 'Psalm' : r.book.name} ${r.c1}:${v} on Bible Hub ↗`;
   $('bh-body').querySelectorAll('.bh-verses button').forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
+});
+
+/* ---------- previous / next verse ---------- */
+function stepRef(r, dir) {
+  let b = r.book, c = r.c1, v = dir > 0 ? r.v2 + 1 : r.v1 - 1;
+  if (v > b.chapters[c - 1]) { c++; v = 1; if (c > b.chapters.length) { b = INDEX[b.i + 1]; if (!b) return null; c = 1; } }
+  if (v < 1) { c--; if (c < 1) { b = INDEX[b.i - 1]; if (!b) return null; c = b.chapters.length; } v = b.chapters[c - 1]; }
+  return { book: b, c1: c, v1: v, c2: c, v2: v };
+}
+function renderNav() {
+  const prev = stepRef(current, -1), next = stepRef(current, 1);
+  document.querySelectorAll('.vnav').forEach(n => {
+    n.innerHTML = `<button type="button" class="prev" ${prev ? '' : 'disabled'}>← ${prev ? esc(refLabel(prev)) : ''}</button>
+      <button type="button" class="next" ${next ? '' : 'disabled'}>${next ? esc(refLabel(next)) : ''} →</button>`;
+  });
+}
+document.addEventListener('click', e => {
+  const btn = e.target.closest('.vnav button'); if (!btn || !current) return;
+  const r = stepRef(current, btn.classList.contains('next') ? 1 : -1); if (!r) return;
+  const bottom = btn.closest('.vnav') === document.querySelectorAll('.vnav')[1];
+  show(r);
+  if (bottom) window.scrollTo({ top: 0 });
 });
 
 const mhCache = new Map();
@@ -572,7 +598,7 @@ async function show(r, push = true) {
   document.title = `${refLabel(r)} · Bible Study Commentary`;
   $('q').value = refLabel(r).replace('–', '-');
   if (push) { try { history.replaceState(null, '', '#' + refHash(r)); } catch (e) { location.hash = refHash(r); } }
-  renderText(); renderMH(); renderEW(); renderBH();
+  renderText(); renderMH(); renderEW(); renderBH(); renderNav();
 }
 
 function setTranslation(t) {
@@ -674,7 +700,6 @@ $('search-form').addEventListener('submit', e => {
   $('q').blur();
   show(r);
 });
-document.querySelectorAll('.hint button').forEach(b => b.addEventListener('click', () => { $('q').value = b.dataset.q; $('search-form').requestSubmit(); }));
 $('tr-select').addEventListener('change', e => setTranslation(e.target.value));
 window.addEventListener('hashchange', () => { const r = hashToRef(location.hash.slice(1)); if (r) show(r, false); });
 
