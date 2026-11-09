@@ -4,7 +4,7 @@ Live version: https://claude.ai/artifact/NpDDWjSQQPZeSp3vyTEHXk
 
 ## What it is
 A static web page (index.html + data/*.json). Search a passage like "John 3:16-36"; it shows the
-text (KJV or WEB, words of Jesus in red) and three expandable commentary rows:
+text (NASB 2020 by default, NLT, or Reina-Valera 1909, from API.Bible; words of Jesus in red) and three expandable commentary rows:
 - Enduring Word (David Guzik): link to the chapter on enduringword.com
 - BibleRef: chapter overview link + one link per verse on bibleref.com
 - Matthew Henry (complete, public domain): shown inline, trimmed to the searched verses
@@ -26,3 +26,18 @@ Host on GitHub Pages and try embedding Enduring Word and BibleRef in iframes:
   probably work (still check for in-page frame-busting or a Cloudflare challenge).
 - BibleRef's headers could not be checked; test it with `curl -sI` and an iframe.
 Keep each row's link as a fallback if the embed comes up blank.
+
+## Bible text (API.Bible)
+- Text comes from https://rest.api.bible one chapter (or verse range within one chapter) at a time.
+  The key lives in config.js (public; Starter plan = non-commercial only).
+- Translation ids are in TRANSLATIONS in build/template.html. NASB 2020 a761ca71e0b3ddcf-01,
+  NLT d6e14a625393b4da-01, Reina-Valera 1909 592420522e16049f-01 (public domain, free on every plan).
+- RVR1960 is not offered by API.Bible; it needs a license from Sociedades Biblicas Unidas.
+- FUMS (API.Bible's required usage tracker) is loaded from pkg.api.bible and called after each passage.
+- Lockman requires the full NASB notice with a clickable www.Lockman.org link on web pages and apps.
+- data/{book}.json (KJV/WEB) is no longer used by the page.
+
+## Enduring Word sections
+- data/ew-sections.json maps "book-chapter" to [sectionNumber, firstVerse, lastVerse] (999 = runs into
+  the next chapter). Built by build/ew_scrape.py (headings' verse numbers only) and build/ew_sections.py.
+  The embed opens at #section-N on enduringword.com.

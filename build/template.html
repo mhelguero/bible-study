@@ -119,7 +119,19 @@ main { max-width: 760px; margin: 0 auto; padding: 24px max(16px, env(safe-area-i
 .scripture p { margin: 0 0 .6em; }
 .chap-mark { display: block; font-family: var(--font-ui); font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; margin: 1em 0 .3em; }
 sup.v { font-family: var(--font-ui); font-size: 11px; font-weight: 700; color: var(--muted); margin-right: 3px; vertical-align: super; line-height: 0; font-variant-numeric: tabular-nums; }
-.jesus { color: var(--red); }
+.jesus, .scripture .wj { color: var(--red); }
+.scripture .v { font-family: var(--font-ui); font-size: 11px; font-weight: 700; color: var(--muted); margin-right: 3px; vertical-align: super; line-height: 0; font-variant-numeric: tabular-nums; }
+.scripture .ms2, .scripture .cl, .scripture .mt, .scripture .mt1, .scripture .mt2 { display: none; } /* repeats the chapter name */
+.scripture .it { font-style: italic; }
+.scripture .sc { font-variant: small-caps; text-transform: lowercase; }
+.scripture .d { font-style: italic; font-size: 16px; color: var(--muted); margin: 0 0 .5em; }
+.scripture .s, .scripture .s1, .scripture .s2, .scripture .ms, .scripture .ms1, .scripture .r { font-family: var(--font-ui); font-size: 15px; font-weight: 700; color: var(--ink); margin: 1em 0 .4em; line-height: 1.4; }
+.scripture .r { font-weight: 500; color: var(--muted); font-size: 13px; }
+.scripture .q1, .scripture .q, .scripture .pi1, .scripture .pi { padding-left: 1.2em; text-indent: -.6em; margin: 0; }
+.scripture .q2, .scripture .pi2 { padding-left: 2.4em; text-indent: -.6em; margin: 0; }
+.scripture .b { height: .6em; }
+.copy { font-size: 12px; line-height: 1.5; color: var(--muted); margin: 14px 0 0; max-width: 65ch; }
+.copy a { color: inherit; }
 .loading { color: var(--muted); font-size: 15px; }
 
 /* ---------- commentary rows ---------- */
@@ -188,8 +200,9 @@ details[open] .chev { transform: rotate(180deg); }
     <div class="brand">
       <h1>Bible Study Commentary</h1>
       <div class="seg" role="group" aria-label="Translation">
-        <button type="button" id="tr-kjv" data-tr="kjv" aria-pressed="true">KJV</button>
-        <button type="button" id="tr-web" data-tr="web" aria-pressed="false">WEB</button>
+        <button type="button" data-tr="nasb" aria-pressed="true">NASB</button>
+        <button type="button" data-tr="nlt" aria-pressed="false">NLT</button>
+        <button type="button" data-tr="rvr" aria-pressed="false">RVR</button>
       </div>
     </div>
     <form class="search" id="search-form" autocomplete="off">
@@ -216,6 +229,7 @@ details[open] .chev { transform: rotate(180deg); }
   <section class="passage" aria-live="polite">
     <div class="ref"><h2 id="ref"></h2><span class="tr" id="tr-label">KING JAMES VERSION</span></div>
     <div class="scripture" id="text"><p class="loading">Loading the passage…</p></div>
+    <p class="copy" id="copy"></p>
   </section>
 
   <section class="comms" aria-label="Commentaries">
@@ -247,7 +261,10 @@ details[open] .chev { transform: rotate(180deg); }
   </section>
 </main>
 
+<script src="config.js"></script>
+<script src="https://pkg.api.bible/fumsV3.min.js" async></script>
 <script>
+window.fumsData = window.fumsData || []; window.fums = window.fums || function () { window.fumsData.push(arguments); };
 const INDEX = __INDEX__;
 
 /* ---------- book name lookup ---------- */
@@ -301,7 +318,8 @@ function parseRef(input) {
   if (v1 == null) v1 = 1;
   if (v2 == null) v2 = book.chapters[c2 - 1];
   if (v1 > book.chapters[c1 - 1]) return { error: `${book.name} ${c1} has ${book.chapters[c1 - 1]} verses.` };
-  v2 = Math.min(v2, book.chapters[c2 - 1]);
+  if (c2 !== c1) return { error: 'Search one chapter at a time, like "John 3" or "John 3:16-36".' };
+  if (v2 > book.chapters[c2 - 1]) return { error: `${book.name} ${c2} has ${book.chapters[c2 - 1]} verses.` };
   if (c1 === c2 && v2 < v1) return { error: 'The end verse comes before the start verse.' };
   return { book, c1, v1, c2, v2 };
 }
@@ -323,61 +341,85 @@ function hashToRef(h) {
   const book = INDEX.find(b => b.slug === m[1]);
   if (!book) return null;
   const r = { book, c1: +m[2], v1: +m[3], c2: +m[4], v2: +m[5] };
-  if (r.c1 < 1 || r.c2 > book.chapters.length || r.c2 < r.c1) return null;
+  if (r.c1 < 1 || r.c1 > book.chapters.length || r.c2 !== r.c1 || r.v1 < 1 || r.v2 < r.v1 || r.v2 > book.chapters[r.c1 - 1]) return null;
   return r;
 }
 
-/* ---------- data ---------- */
-const cache = new Map();
-function loadBook(book) {
-  if (!cache.has(book.slug)) {
-    cache.set(book.slug, fetch(`data/${book.slug}.json`).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
-      .catch(e => { cache.delete(book.slug); throw e; }));
+/* ---------- Bible text from API.Bible (one chapter at a time) ---------- */
+const TRANSLATIONS = {
+  nasb: { id: 'a761ca71e0b3ddcf-01', label: 'NEW AMERICAN STANDARD BIBLE 2020',
+    notice: 'Scripture quotations taken from the (NASB®) New American Standard Bible®, Copyright © 1960, 1971, 1977, 1995, 2020 by The Lockman Foundation. Used by permission. All rights reserved. <a href="https://www.lockman.org" target="_blank" rel="noopener">www.Lockman.org</a>' },
+  nlt: { id: 'd6e14a625393b4da-01', label: 'NEW LIVING TRANSLATION',
+    notice: 'Scripture quotations are taken from the Holy Bible, New Living Translation, copyright © 1996, 2004, 2015 by Tyndale House Foundation. Used by permission of Tyndale House Publishers, Carol Stream, Illinois 60188. All rights reserved.' },
+  rvr: { id: '592420522e16049f-01', label: 'REINA-VALERA 1909',
+    notice: 'Reina-Valera 1909, dominio público.' },
+};
+const USFM = 'GEN EXO LEV NUM DEU JOS JDG RUT 1SA 2SA 1KI 2KI 1CH 2CH EZR NEH EST JOB PSA PRO ECC SNG ISA JER LAM EZK DAN HOS JOL AMO OBA JON MIC NAM HAB ZEP HAG ZEC MAL MAT MRK LUK JHN ACT ROM 1CO 2CO GAL EPH PHP COL 1TH 2TH 1TI 2TI TIT PHM HEB JAS 1PE 2PE 1JN 2JN 3JN JUD REV'.split(' ');
+const API_KEY = (window.BIBLE_API_KEY || '').trim();
+const textCache = new Map();
+function loadPassage(r, tr) {
+  const code = USFM[r.book.i];
+  // A whole chapter is fetched by chapter id, so translations with an extra verse (e.g. 3 John 15) are complete.
+  const whole = r.v1 === 1 && r.v2 === r.book.chapters[r.c1 - 1];
+  const pid = whole ? `${code}.${r.c1}` : `${code}.${r.c1}.${r.v1}-${code}.${r.c2}.${r.v2}`;
+  const key = tr + '|' + pid;
+  if (!textCache.has(key)) {
+    const url = `https://rest.api.bible/v1/bibles/${TRANSLATIONS[tr].id}/${whole ? 'chapters' : 'passages'}/${pid}?content-type=html&include-notes=false&include-titles=true&include-chapter-numbers=false&include-verse-numbers=true&include-verse-spans=false`;
+    textCache.set(key, fetch(url, { headers: { 'api-key': API_KEY } }).then(async res => {
+      if (!res.ok) { const err = new Error(String(res.status)); err.status = res.status; throw err; }
+      return res.json();
+    }).catch(e => { textCache.delete(key); throw e; }));
   }
-  return cache.get(book.slug);
+  return textCache.get(key);
+}
+// Keep only the plain formatting tags the API sends (p/span with their class and verse number).
+function cleanHtml(html) {
+  const doc = new DOMParser().parseFromString(`<div>${html}</div>`, 'text/html');
+  const walk = node => {
+    for (const el of [...node.children]) {
+      walk(el);
+      if (!['P', 'SPAN', 'BR'].includes(el.tagName)) { el.replaceWith(...el.childNodes); continue; }
+      for (const a of [...el.attributes]) if (!['class', 'data-number'].includes(a.name)) el.removeAttribute(a.name);
+    }
+  };
+  const root = doc.body.firstElementChild; walk(root);
+  return root.innerHTML.replace(/¶\s?/g, ''); // NASB paragraph marks
 }
 
-/* ---------- rendering ---------- */
 const $ = id => document.getElementById(id);
 const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-let translation = 'kjv';
-try { const t = localStorage.getItem('bsc-tr'); if (t === 'web' || t === 'kjv') translation = t; } catch (e) {}
-let current = null, currentData = null;
-
-function verseHtml(t) {
-  //  …  mark the words of Jesus
-  let out = '', open = false;
-  for (const part of t.split(/([])/)) {
-    if (part === '') { if (!open) { out += '<span class="jesus">'; open = true; } }
-    else if (part === '') { if (open) { out += '</span>'; open = false; } }
-    else out += esc(part);
-  }
-  return out + (open ? '</span>' : '');
-}
+let translation = 'nasb';
+try { const t = localStorage.getItem('bsc-tr2'); if (TRANSLATIONS[t]) translation = t; } catch (e) {}
+let current = null;
 
 function chaptersIn(r) { const a = []; for (let c = r.c1; c <= r.c2; c++) a.push(c); return a; }
 function rangeIn(r, c) {
   return [c === r.c1 ? r.v1 : 1, c === r.c2 ? r.v2 : r.book.chapters[c - 1]];
 }
 
-function renderText() {
-  const r = current, d = currentData;
-  const multi = r.c1 !== r.c2;
-  let html = '';
-  for (const c of chaptersIn(r)) {
-    const verses = d[translation][c] || [];
-    const [a, b] = rangeIn(r, c);
-    if (multi) html += `<span class="chap-mark">Chapter ${c}</span>`;
-    html += '<p>';
-    for (let v = a; v <= b; v++) {
-      const t = verses[v - 1];
-      if (!t) continue;
-      html += `<sup class="v">${v}</sup>${verseHtml(t)} `;
-    }
-    html += '</p>';
+async function renderText() {
+  const r = current, tr = translation;
+  $('tr-label').textContent = TRANSLATIONS[tr].label;
+  $('copy').innerHTML = TRANSLATIONS[tr].notice;
+  if (!API_KEY || /PASTE/i.test(API_KEY)) {
+    $('text').innerHTML = '<p class="error">Bible text needs your API.Bible key. Open <strong>config.js</strong> in the GitHub repository and paste your key there.</p>';
+    return;
   }
-  $('text').innerHTML = html;
-  $('tr-label').textContent = translation === 'kjv' ? 'KING JAMES VERSION' : 'WORLD ENGLISH BIBLE';
+  $('text').innerHTML = '<p class="loading">Loading the passage…</p>';
+  try {
+    const d = await loadPassage(r, tr);
+    if (current !== r || translation !== tr) return;
+    $('text').innerHTML = cleanHtml(d.data.content || '') || '<p class="small">This translation has no text for this passage.</p>';
+    if (d.meta && d.meta.fumsToken) window.fums('trackView', d.meta.fumsToken);
+  } catch (e) {
+    if (current !== r || translation !== tr) return;
+    const msg = e.status === 401 ? 'The API.Bible key in config.js was not accepted. Check that it was pasted correctly.'
+      : e.status === 403 ? 'Your API.Bible plan does not include this translation.'
+      : e.status === 429 ? 'Too many requests to API.Bible right now. Wait a minute and try again.'
+      : e.status === 404 ? 'This translation does not have that passage.'
+      : 'The passage could not be loaded. Check your connection and press Show again.';
+    $('text').innerHTML = `<p class="error">${msg}</p>`;
+  }
 }
 
 function ewSlug(book, c) {
@@ -507,23 +549,14 @@ async function show(r, push = true) {
   document.title = `${refLabel(r)} · Bible Study Commentary`;
   $('q').value = refLabel(r).replace('–', '-');
   if (push) { try { history.replaceState(null, '', '#' + refHash(r)); } catch (e) { location.hash = refHash(r); } }
-  $('text').innerHTML = '<p class="loading">Loading the passage…</p>';
-  renderMH();
-  try {
-    const d = await loadBook(r.book);
-    if (current !== r) return;
-    currentData = d;
-    renderText(); renderEW(); renderBR();
-  } catch (e) {
-    $('text').innerHTML = '<p class="error">The passage could not be loaded. Check your connection and press Show again.</p>';
-  }
+  renderText(); renderMH(); renderEW(); renderBR();
 }
 
 function setTranslation(t) {
   translation = t;
-  try { localStorage.setItem('bsc-tr', t); } catch (e) {}
+  try { localStorage.setItem('bsc-tr2', t); } catch (e) {}
   document.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tr === t)));
-  if (currentData) renderText();
+  if (current) renderText();
 }
 
 /* ---------- typing suggestions: book → chapter → verse → end verse ---------- */
