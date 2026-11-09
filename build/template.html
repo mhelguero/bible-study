@@ -62,7 +62,7 @@ button, input { font: inherit; color: inherit; }
   padding: calc(env(safe-area-inset-top) + 12px) max(16px, env(safe-area-inset-right)) 12px max(16px, env(safe-area-inset-left));
 }
 .bar-inner { max-width: 760px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
-.brand { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.brand { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
 .brand h1 { font-size: 15px; font-weight: 700; letter-spacing: .02em; margin: 0; color: var(--muted); text-transform: uppercase; }
 .search { display: flex; gap: 8px; }
 .search input {
@@ -78,7 +78,7 @@ button, input { font: inherit; color: inherit; }
   background: var(--accent); color: var(--accent-ink); font-weight: 600; cursor: pointer;
 }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
-.seg button { border: 0; background: none; padding: 5px 12px; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; min-height: 32px; }
+.seg button { border: 0; background: none; padding: 5px 10px; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; min-height: 32px; }
 .seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
 .hint { font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .hint button { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 3px 10px; font-size: 13px; cursor: pointer; }
@@ -202,6 +202,7 @@ details[open] .chev { transform: rotate(180deg); }
       <div class="seg" role="group" aria-label="Translation">
         <button type="button" data-tr="nasb" aria-pressed="true">NASB</button>
         <button type="button" data-tr="nlt" aria-pressed="false">NLT</button>
+        <button type="button" data-tr="niv" aria-pressed="false">NIV</button>
         <button type="button" data-tr="rvr" aria-pressed="false">RVR</button>
       </div>
     </div>
@@ -351,6 +352,8 @@ const TRANSLATIONS = {
     notice: 'Scripture quotations taken from the (NASB®) New American Standard Bible®, Copyright © 1960, 1971, 1977, 1995, 2020 by The Lockman Foundation. Used by permission. All rights reserved. <a href="https://www.lockman.org" target="_blank" rel="noopener">www.Lockman.org</a>' },
   nlt: { id: 'd6e14a625393b4da-01', label: 'NEW LIVING TRANSLATION',
     notice: 'Scripture quotations are taken from the Holy Bible, New Living Translation, copyright © 1996, 2004, 2015 by Tyndale House Foundation. Used by permission of Tyndale House Publishers, Carol Stream, Illinois 60188. All rights reserved.' },
+  niv: { id: '78a9f6124f344018-01', label: 'NEW INTERNATIONAL VERSION',
+    notice: 'Scripture quotations taken from The Holy Bible, New International Version® NIV® Copyright © 1973, 1978, 1984, 2011 by Biblica, Inc.® Used by permission. All rights reserved worldwide.' },
   rvr: { id: '592420522e16049f-01', label: 'REINA-VALERA 1909',
     notice: 'Reina-Valera 1909, dominio público.' },
 };
