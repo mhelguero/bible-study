@@ -1,0 +1,15 @@
+{
+  "name": "Bible Study Commentary",
+  "short_name": "Bible Study",
+  "description": "Bible text with Enduring Word, Bible Hub and Matthew Henry commentaries.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f5f1",
+  "theme_color": "#2d4a7a",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

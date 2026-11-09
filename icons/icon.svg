@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#2d4a7a"/>
+  <!-- open book, kept inside the central safe zone so Android can crop it to a circle -->
+  <g fill="none" stroke="#ffffff" stroke-width="20" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M256 178c-34-26-84-34-128-30v186c44-4 94 4 128 30 34-26 84-34 128-30V148c-44-4-94 4-128 30z" fill="#ffffff" fill-opacity=".12"/>
+    <path d="M256 178v186"/>
+  </g>
+  <path d="M256 104v52M236 122h40" stroke="#f3d27a" stroke-width="14" stroke-linecap="round"/>
+</svg>
