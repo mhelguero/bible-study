@@ -20,7 +20,7 @@
   --accent-ink: #ffffff;
   --red: #a8261d;
   --ew: #7a3b2e;
-  --br: #2d6a8a;
+  --bh: #2f5d8a;
   --mh: #4d6b3a;
   --chip: #eef0ea;
   --font-scripture: "Source Serif 4", Georgia, "Times New Roman", serif;
@@ -30,13 +30,13 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --paper: #14171e; --surface: #1c2029; --ink: #e7e9ee; --muted: #9aa1b0; --line: #2d3240;
-    --accent: #8fb0e8; --accent-ink: #10141c; --red: #ef8a7f; --ew: #d9937f; --br: #7fbcd9; --mh: #a5c78e;
+    --accent: #8fb0e8; --accent-ink: #10141c; --red: #ef8a7f; --ew: #d9937f; --bh: #8db6de; --mh: #a5c78e;
     --chip: #252a35; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --paper: #14171e; --surface: #1c2029; --ink: #e7e9ee; --muted: #9aa1b0; --line: #2d3240;
-  --accent: #8fb0e8; --accent-ink: #10141c; --red: #ef8a7f; --ew: #d9937f; --br: #7fbcd9; --mh: #a5c78e;
+  --accent: #8fb0e8; --accent-ink: #10141c; --red: #ef8a7f; --ew: #d9937f; --bh: #8db6de; --mh: #a5c78e;
   --chip: #252a35; color-scheme: dark;
 }
 
@@ -77,9 +77,16 @@ button, input { font: inherit; color: inherit; }
   border: 0; border-radius: 10px; padding: 0 18px; min-height: 44px;
   background: var(--accent); color: var(--accent-ink); font-weight: 600; cursor: pointer;
 }
-.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
-.seg button { border: 0; background: none; padding: 5px 10px; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; min-height: 32px; }
-.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.tr-pick { position: relative; display: inline-flex; }
+.tr-pick .sr { position: absolute; left: -9999px; }
+.tr-pick select {
+  appearance: none; -webkit-appearance: none; font: inherit; font-size: 14px; font-weight: 600; color: var(--ink);
+  background: var(--surface); border: 1px solid var(--line); border-radius: 8px; min-height: 36px;
+  padding: 6px 32px 6px 12px; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 14 14'%3E%3Cpath d='M3 5l4 4 4-4' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center;
+}
+.tr-pick select:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
 .hint { font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .hint button { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 3px 10px; font-size: 13px; cursor: pointer; }
 .error { color: var(--red); font-size: 14px; margin: 0; }
@@ -199,12 +206,14 @@ details[open] .chev { transform: rotate(180deg); }
   <div class="bar-inner">
     <div class="brand">
       <h1>Bible Study Commentary</h1>
-      <div class="seg" role="group" aria-label="Translation">
-        <button type="button" data-tr="nasb" aria-pressed="true">NASB</button>
-        <button type="button" data-tr="nlt" aria-pressed="false">NLT</button>
-        <button type="button" data-tr="niv" aria-pressed="false">NIV</button>
-        <button type="button" data-tr="rvr" aria-pressed="false">RVR</button>
-      </div>
+      <label class="tr-pick"><span class="sr">Translation</span>
+        <select id="tr-select" aria-label="Translation">
+          <option value="nasb">NASB 2020</option>
+          <option value="nlt">NLT</option>
+          <option value="niv">NIV</option>
+          <option value="rvr">Reina-Valera 1909</option>
+        </select>
+      </label>
     </div>
     <form class="search" id="search-form" autocomplete="off">
       <label for="q" class="sr" style="position:absolute;left:-9999px">Passage</label>
@@ -244,12 +253,12 @@ details[open] .chev { transform: rotate(180deg); }
       <div class="c-body" id="ew-body"></div>
     </details>
 
-    <details class="c" id="c-br" style="--stripe: var(--br)">
+    <details class="c" id="c-bh" style="--stripe: var(--bh)">
       <summary>
-        <span><span class="c-name">BibleRef</span><br><span class="c-by">BibleRef.com verse-by-verse commentary</span></span>
+        <span><span class="c-name">Bible Hub</span><br><span class="c-by">Verse-by-verse: Barnes, Ellicott, Gill, JFB and more</span></span>
         <span class="chev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M3 5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
       </summary>
-      <div class="c-body" id="br-body"></div>
+      <div class="c-body" id="bh-body"></div>
     </details>
 
     <details class="c" id="c-mh" style="--stripe: var(--mh)">
@@ -429,7 +438,6 @@ function ewSlug(book, c) {
   const n = book.name === 'Psalms' ? 'psalm' : book.name.toLowerCase().replace(/\s+/g, '-');
   return `https://enduringword.com/bible-commentary/${n}-${c}/`;
 }
-function brBook(book) { return book.name.replace(/\s+/g, '-'); }
 
 let ewSecP = null;
 function loadEWSections() {
@@ -475,18 +483,30 @@ function loadEW() {
 }
 $('c-ew').addEventListener('toggle', () => { if ($('c-ew').open) loadEW(); });
 
-function renderBR() {
-  const r = current, B = brBook(r.book);
-  const blocks = chaptersIn(r).map(c => {
-    const [a, b] = rangeIn(r, c);
-    let chips = '';
-    for (let v = a; v <= b; v++) chips += `<a href="https://www.bibleref.com/${B}/${c}/${B}-${c}-${v}.html" target="_blank" rel="noopener" aria-label="${esc(r.book.name)} ${c}:${v} on BibleRef">${c}:${v}</a>`;
-    return `<div style="display:grid;gap:8px">
-      <a class="link-btn" href="https://www.bibleref.com/${B}/${c}/${B}-chapter-${c}.html" target="_blank" rel="noopener">${esc(r.book.name)} ${c} overview ↗</a>
-      <div class="verse-links">${chips}</div></div>`;
-  }).join('');
-  $('br-body').innerHTML = `<p>BibleRef writes a short explanation for each verse, published on BibleRef.com. Tap a verse to open its notes.</p>${blocks}`;
+/* ---------- Bible Hub: one page per verse with many classic commentaries ---------- */
+const bhBook = b => b.name === 'Song of Solomon' ? 'songs' : b.name.toLowerCase().replace(/\s+/g, '_');
+const bhUrl = (b, c, v) => `https://biblehub.com/commentaries/${bhBook(b)}/${c}-${v}.htm`;
+function renderBH() {
+  const r = current, c = r.c1, label = r.book.name === 'Psalms' ? 'Psalm' : r.book.name;
+  let chips = '';
+  for (let v = r.v1; v <= r.v2; v++) chips += `<button type="button" data-v="${v}" aria-pressed="${v === r.v1}">${v}</button>`;
+  const url = bhUrl(r.book, c, r.v1);
+  $('bh-body').innerHTML = `<p class="small">Classic commentaries on one verse at a time, shown from biblehub.com. Pick a verse:</p>
+    <div class="ew-jumps bh-verses">${chips}</div>
+    <iframe class="ew-frame" data-src="${url}" title="Bible Hub commentaries on ${esc(label)} ${c}"></iframe>
+    <a class="link-btn" href="${url}" target="_blank" rel="noopener">Open ${esc(label)} ${c}:${r.v1} on Bible Hub ↗</a>`;
+  if ($('c-bh').open) loadBH();
 }
+function loadBH() { $('bh-body').querySelectorAll('iframe[data-src]').forEach(f => { f.src = f.dataset.src; f.removeAttribute('data-src'); }); }
+$('c-bh').addEventListener('toggle', () => { if ($('c-bh').open) loadBH(); });
+$('bh-body').addEventListener('click', e => {
+  const btn = e.target.closest('.bh-verses button'); if (!btn) return;
+  const r = current, v = +btn.dataset.v, url = bhUrl(r.book, r.c1, v), f = $('bh-body').querySelector('iframe');
+  if (f.hasAttribute('data-src')) f.dataset.src = url; else f.src = url;
+  const a = $('bh-body').querySelector('a.link-btn'); a.href = url;
+  a.textContent = `Open ${r.book.name === 'Psalms' ? 'Psalm' : r.book.name} ${r.c1}:${v} on Bible Hub ↗`;
+  $('bh-body').querySelectorAll('.bh-verses button').forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
+});
 
 const mhCache = new Map();
 function loadMH(book) {
@@ -552,13 +572,13 @@ async function show(r, push = true) {
   document.title = `${refLabel(r)} · Bible Study Commentary`;
   $('q').value = refLabel(r).replace('–', '-');
   if (push) { try { history.replaceState(null, '', '#' + refHash(r)); } catch (e) { location.hash = refHash(r); } }
-  renderText(); renderMH(); renderEW(); renderBR();
+  renderText(); renderMH(); renderEW(); renderBH();
 }
 
 function setTranslation(t) {
   translation = t;
   try { localStorage.setItem('bsc-tr2', t); } catch (e) {}
-  document.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tr === t)));
+  $('tr-select').value = t;
   if (current) renderText();
 }
 
@@ -655,7 +675,7 @@ $('search-form').addEventListener('submit', e => {
   show(r);
 });
 document.querySelectorAll('.hint button').forEach(b => b.addEventListener('click', () => { $('q').value = b.dataset.q; $('search-form').requestSubmit(); }));
-document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => setTranslation(b.dataset.tr)));
+$('tr-select').addEventListener('change', e => setTranslation(e.target.value));
 window.addEventListener('hashchange', () => { const r = hashToRef(location.hash.slice(1)); if (r) show(r, false); });
 
 setTranslation(translation);

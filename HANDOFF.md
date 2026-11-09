@@ -6,7 +6,8 @@ Live version: https://claude.ai/artifact/NpDDWjSQQPZeSp3vyTEHXk
 A static web page (index.html + data/*.json). Search a passage like "John 3:16-36"; it shows the
 text (NASB 2020 by default, NLT, NIV, or Reina-Valera 1909, from API.Bible; words of Jesus in red) and three expandable commentary rows:
 - Enduring Word (David Guzik): link to the chapter on enduringword.com
-- BibleRef: chapter overview link + one link per verse on bibleref.com
+- Bible Hub: biblehub.com/commentaries/{book}/{c}-{v}.htm embedded, one verse at a time with verse buttons
+  (BibleRef was removed: it blocks embedding with X-Frame-Options)
 - Matthew Henry (complete, public domain): shown inline, trimmed to the searched verses
   using Henry's own markers ("v. 16", "ver. 16-18"), with a button to show the whole section.
 
@@ -41,3 +42,6 @@ Keep each row's link as a fallback if the embed comes up blank.
 - data/ew-sections.json maps "book-chapter" to [sectionNumber, firstVerse, lastVerse] (999 = runs into
   the next chapter). Built by build/ew_scrape.py (headings' verse numbers only) and build/ew_sections.py.
   The embed opens at #section-N on enduringword.com.
+
+## Translation picker
+- A dropdown (#tr-select); the choice is remembered in localStorage (bsc-tr2).
