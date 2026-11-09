@@ -457,7 +457,7 @@ async function renderEW() {
       <a class="link-btn" href="${url}${first}" target="_blank" rel="noopener">Open ${esc(label)} ${c} on Enduring Word ↗</a>
     </div>`;
   }).join('');
-  $('ew-body').innerHTML = `<p class="small">David Guzik's commentary, shown from enduringword.com and opened at the section on your verses. If it doesn't load, use the button below it.</p>${parts}`;
+  $('ew-body').innerHTML = `<p class="small">David Guzik's commentary, shown from enduringword.com and opened at the section on your verses. For dark mode, tap ☽ at the top of the commentary once; it stays on. If it doesn't load, use the button below it.</p>${parts}`;
   if ($('c-ew').open) loadEW();
 }
 $('ew-body').addEventListener('click', e => {
