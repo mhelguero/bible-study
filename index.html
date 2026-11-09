@@ -83,6 +83,30 @@ button, input { font: inherit; color: inherit; }
 .hint { font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .hint button { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 3px 10px; font-size: 13px; cursor: pointer; }
 .error { color: var(--red); font-size: 14px; margin: 0; }
+.qwrap { position: relative; flex: 1; min-width: 0; display: flex; }
+.qwrap input { flex: 1; min-width: 0; }
+.sugg {
+  position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 20;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(0,0,0,.14); padding: 6px; max-height: min(60vh, 380px); overflow-y: auto;
+}
+.sugg-h { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); padding: 4px 8px 6px; }
+.sugg-list { display: grid; }
+.sugg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(46px, 1fr)); gap: 4px; }
+.sugg button {
+  border: 0; background: transparent; color: var(--ink); font: inherit; font-size: 15px; text-align: left;
+  padding: 9px 10px; border-radius: 7px; cursor: pointer; min-height: 40px;
+}
+.sugg-grid button { text-align: center; padding: 8px 0; background: var(--chip); font-variant-numeric: tabular-nums; }
+.sugg button[aria-selected="true"], .sugg button:hover { background: color-mix(in srgb, var(--accent) 20%, var(--surface)); }
+.sugg .meta { color: var(--muted); font-size: 13px; margin-left: 6px; }
+.ew-jumps { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.ew-jumps button {
+  border: 1px solid var(--line); background: var(--chip); color: var(--ink); border-radius: 8px;
+  min-height: 36px; padding: 6px 10px; font-size: 14px; cursor: pointer; font-variant-numeric: tabular-nums;
+}
+.ew-jumps button[aria-pressed="true"] { background: var(--stripe); color: var(--surface); border-color: var(--stripe); }
+.welcome { color: var(--muted); font-size: 15px; text-align: center; padding: 40px 16px; }
 .error:empty { display: none; }
 
 /* ---------- passage ---------- */
@@ -170,7 +194,11 @@ details[open] .chev { transform: rotate(180deg); }
     </div>
     <form class="search" id="search-form" autocomplete="off">
       <label for="q" class="sr" style="position:absolute;left:-9999px">Passage</label>
-      <input id="q" name="q" type="search" inputmode="text" placeholder="e.g. John 3:16-36" enterkeyhint="search" spellcheck="false" autocapitalize="words">
+      <div class="qwrap">
+        <input id="q" name="q" type="search" inputmode="text" placeholder="Start typing a book, e.g. John" enterkeyhint="search" spellcheck="false" autocapitalize="words"
+          role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="sugg">
+        <div class="sugg" id="sugg" role="listbox" aria-label="Suggestions" hidden></div>
+      </div>
       <button class="btn" type="submit" id="go">Show</button>
     </form>
     <p class="error" id="err"></p>
@@ -183,9 +211,10 @@ details[open] .chev { transform: rotate(180deg); }
   </div>
 </header>
 
-<main id="main">
+<p class="welcome" id="welcome">Search for a passage to see the text and commentaries.</p>
+<main id="main" hidden>
   <section class="passage" aria-live="polite">
-    <div class="ref"><h2 id="ref">John 3:16–36</h2><span class="tr" id="tr-label">KING JAMES VERSION</span></div>
+    <div class="ref"><h2 id="ref"></h2><span class="tr" id="tr-label">KING JAMES VERSION</span></div>
     <div class="scripture" id="text"><p class="loading">Loading the passage…</p></div>
   </section>
 
@@ -357,23 +386,44 @@ function ewSlug(book, c) {
 }
 function brBook(book) { return book.name.replace(/\s+/g, '-'); }
 
-function renderEW() {
+let ewSecP = null;
+function loadEWSections() {
+  return ewSecP || (ewSecP = fetch('data/ew-sections.json').then(r => r.ok ? r.json() : {}).catch(() => { ewSecP = null; return {}; }));
+}
+const rangeTxt = (a, b) => a === b ? `${a}` : (b >= 999 ? `${a}–end` : `${a}–${b}`);
+async function renderEW() {
   const r = current, cs = chaptersIn(r);
+  const secs = await loadEWSections();
+  if (current !== r) return;
   const label = r.book.name === 'Psalms' ? 'Psalm' : r.book.name;
   const parts = cs.map(c => {
     const [a, b] = rangeIn(r, c);
-    const span = (a === 1 && b === r.book.chapters[c - 1]) ? 'the whole chapter' : (a === b ? `verse ${a}` : `verses ${a}–${b}`);
+    const whole = a === 1 && b === r.book.chapters[c - 1];
     const url = ewSlug(r.book, c);
-    return `<div class="ew-chap">
+    const hits = whole ? [] : (secs[`${r.book.slug}-${c}`] || []).filter(s => s[1] <= b && s[2] >= a);
+    const first = hits.length ? `#section-${hits[0][0]}` : '';
+    const jumps = hits.length > 0 ? `<div class="ew-jumps"><span class="small">Guzik's section${hits.length > 1 ? 's' : ''} on your verses:</span>${
+      hits.map((s, i) => `<button type="button" data-sec="${s[0]}" aria-pressed="${i === 0}">${cs.length > 1 ? c + ':' : 'v. '}${rangeTxt(s[1], s[2])}</button>`).join('')}</div>`
+      : (whole ? '' : `<p class="small">Look for Guzik's headings whose verse numbers in brackets cover your verses.</p>`);
+    return `<div class="ew-chap" data-url="${url}">
       ${cs.length > 1 ? `<h5>${esc(label)} ${c}</h5>` : ''}
-      <p class="small">For ${span}, look for Guzik's headings whose verse numbers in brackets fall in that range.</p>
-      <iframe class="ew-frame" data-src="${url}" title="Enduring Word commentary on ${esc(label)} ${c}" referrerpolicy="no-referrer-when-downgrade"></iframe>
-      <a class="link-btn" href="${url}" target="_blank" rel="noopener">Open ${esc(label)} ${c} on Enduring Word ↗</a>
+      ${jumps}
+      <iframe class="ew-frame" data-src="${url}${first}" title="Enduring Word commentary on ${esc(label)} ${c}"></iframe>
+      <a class="link-btn" href="${url}${first}" target="_blank" rel="noopener">Open ${esc(label)} ${c} on Enduring Word ↗</a>
     </div>`;
   }).join('');
-  $('ew-body').innerHTML = `<p class="small">David Guzik's commentary, shown from enduringword.com. If it doesn't load, use the button below it.</p>${parts}`;
+  $('ew-body').innerHTML = `<p class="small">David Guzik's commentary, shown from enduringword.com and opened at the section on your verses. If it doesn't load, use the button below it.</p>${parts}`;
   if ($('c-ew').open) loadEW();
 }
+$('ew-body').addEventListener('click', e => {
+  const btn = e.target.closest('.ew-jumps button');
+  if (!btn) return;
+  const box = btn.closest('.ew-chap'), f = box.querySelector('iframe');
+  const src = `${box.dataset.url}#section-${btn.dataset.sec}`;
+  if (f.hasAttribute('data-src')) f.dataset.src = src; else f.src = src;
+  box.querySelector('a.link-btn').href = src;
+  box.querySelectorAll('.ew-jumps button').forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
+});
 // Only load the (heavy) Enduring Word page when its row is actually open.
 function loadEW() {
   $('ew-body').querySelectorAll('iframe[data-src]').forEach(f => { f.src = f.dataset.src; f.removeAttribute('data-src'); });
@@ -437,7 +487,6 @@ async function renderMH() {
     }
   }
   if (!found) html += '<p class="small">Matthew Henry has no note for this passage.</p>';
-  html += '<p class="small">Matthew Henry, <em>Commentary on the Whole Bible</em> (1708–1710), public domain. Notes are cut where Henry moves past your verses, using his own markers such as “v. 18”.</p>';
   $('mh-body').innerHTML = html;
 }
 document.addEventListener('click', e => {
@@ -453,6 +502,7 @@ document.addEventListener('click', e => {
 async function show(r, push = true) {
   current = r;
   $('err').textContent = '';
+  $('main').hidden = false; $('welcome').hidden = true;
   $('ref').textContent = refLabel(r);
   document.title = `${refLabel(r)} · Bible Study Commentary`;
   $('q').value = refLabel(r).replace('–', '-');
@@ -476,8 +526,93 @@ function setTranslation(t) {
   if (currentData) renderText();
 }
 
+/* ---------- typing suggestions: book → chapter → verse → end verse ---------- */
+const NAME_KEYS = new Map(INDEX.map(b => [normBook(b.name), b]));
+NAME_KEYS.set('psalm', BY_NAME['Psalms']);
+const shortName = b => b.name === 'Psalms' ? 'Psalm' : b.name;
+const exactBook = s => NAME_KEYS.get(normBook(s)) || (/\s$/.test(s) ? findBook(s) : null);
+const sugg = $('sugg'), qIn = $('q');
+let sItems = [], sActive = -1, afterVerse = null;
+const range = (lo, hi) => Array.from({ length: Math.max(0, hi - lo + 1) }, (_, i) => lo + i);
+
+function suggestionsFor(raw) {
+  const v = raw.replace(/[–—]/g, '-').replace(/^\s+/, '');
+  if (!v) return null;
+  let m;
+  // "John 3:16-" → end verse
+  if ((m = v.match(/^(.*?[a-z.])\s*(\d+)\s*:\s*(\d+)\s*-\s*(\d*)$/i)) || (afterVerse && afterVerse === v && (m = v.match(/^(.*?[a-z.])\s*(\d+)\s*:\s*(\d+)()$/i)))) {
+    const b = exactBook(m[1] + ' '); if (!b) return null;
+    const c = +m[2], s = +m[3], n = b.chapters[c - 1]; if (!n || s >= n) return null;
+    const nums = range(s + 1, n).filter(x => String(x).startsWith(m[4]));
+    return { head: `${shortName(b)} ${c}:${s} through verse…`, grid: true,
+      items: nums.map(x => ({ label: String(x), value: `${shortName(b)} ${c}:${s}-${x}`, submit: true })) };
+  }
+  // "John 3:" or "John 3:1" → verse
+  if ((m = v.match(/^(.*?[a-z.])\s*(\d+)\s*:\s*(\d*)$/i))) {
+    const b = exactBook(m[1] + ' '); if (!b) return null;
+    const c = +m[2], n = b.chapters[c - 1]; if (!n) return null;
+    const nums = range(1, n).filter(x => String(x).startsWith(m[3]));
+    return { head: `${shortName(b)} ${c} · verse`, grid: true,
+      items: nums.map(x => ({ label: String(x), value: `${shortName(b)} ${c}:${x}`, verse: true })) };
+  }
+  // "John" or "John 3" → chapter
+  if ((m = v.match(/^(.*?[a-z.])(?:\s+(\d*))?$/i)) && exactBook(m[1] + (m[2] !== undefined ? ' ' : ''))) {
+    const b = exactBook(m[1] + (m[2] !== undefined ? ' ' : ''));
+    const typed = m[2] || '';
+    const nums = range(1, b.chapters.length).filter(x => String(x).startsWith(typed));
+    return { head: `${shortName(b)} · chapter`, grid: true,
+      items: nums.map(x => ({ label: String(x), value: `${shortName(b)} ${x}:` })) };
+  }
+  // otherwise → book names
+  const k = normBook(v);
+  if (!k || /\d\s*:|\d\s+\S|[a-z]\s*\d/i.test(v.replace(/^[123]\s*/, ''))) return null;
+  const words = v.toLowerCase().trim();
+  const books = INDEX.filter(b => normBook(b.name).startsWith(k) || b.name.toLowerCase().split(' ').some(w => w.startsWith(words)) || (ALIASES[k] === b.name));
+  if (!books.length) return null;
+  return { head: 'Book', grid: false,
+    items: books.slice(0, 12).map(b => ({ label: b.name, meta: `${b.chapters.length} ch`, value: `${shortName(b)} ` })) };
+}
+function renderSugg() {
+  const s = suggestionsFor(qIn.value);
+  sItems = s ? s.items : []; sActive = -1;
+  if (!sItems.length || document.activeElement !== qIn) { closeSugg(); return; }
+  sugg.innerHTML = `<div class="sugg-h">${esc(s.head)}</div><div class="${s.grid ? 'sugg-grid' : 'sugg-list'}">${
+    sItems.map((it, i) => `<button type="button" role="option" id="sg-${i}" data-i="${i}" aria-selected="false" tabindex="-1">${esc(it.label)}${it.meta ? `<span class="meta">${esc(it.meta)}</span>` : ''}</button>`).join('')}</div>`;
+  sugg.hidden = false; qIn.setAttribute('aria-expanded', 'true');
+}
+function closeSugg() { sugg.hidden = true; qIn.setAttribute('aria-expanded', 'false'); qIn.removeAttribute('aria-activedescendant'); sActive = -1; }
+function pick(i) {
+  const it = sItems[i]; if (!it) return;
+  qIn.value = it.value;
+  afterVerse = it.verse ? it.value : null;
+  if (it.submit) { closeSugg(); $('search-form').requestSubmit(); return; }
+  qIn.focus(); renderSugg();
+}
+function moveActive(d) {
+  if (sugg.hidden || !sItems.length) return;
+  sActive = (sActive + d + sItems.length) % sItems.length;
+  sugg.querySelectorAll('button').forEach((b, i) => b.setAttribute('aria-selected', String(i === sActive)));
+  const el = $('sg-' + sActive); qIn.setAttribute('aria-activedescendant', el.id); el.scrollIntoView({ block: 'nearest' });
+}
+qIn.addEventListener('input', () => { afterVerse = null; renderSugg(); });
+qIn.addEventListener('focus', renderSugg);
+qIn.addEventListener('blur', () => setTimeout(() => { if (document.activeElement !== qIn) closeSugg(); }, 120));
+qIn.addEventListener('keydown', e => {
+  const grid = sugg.querySelector('.sugg-grid');
+  const cols = grid ? Math.max(1, Math.round(grid.clientWidth / 50)) : 1;
+  if (e.key === 'ArrowDown') { e.preventDefault(); moveActive(grid ? (sActive < 0 ? 1 : cols) : 1); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); moveActive(grid ? -cols : -1); }
+  else if (grid && e.key === 'ArrowRight' && sActive >= 0) { e.preventDefault(); moveActive(1); }
+  else if (grid && e.key === 'ArrowLeft' && sActive >= 0) { e.preventDefault(); moveActive(-1); }
+  else if (e.key === 'Enter' && !sugg.hidden && sActive >= 0) { e.preventDefault(); pick(sActive); }
+  else if (e.key === 'Escape') closeSugg();
+});
+sugg.addEventListener('pointerdown', e => e.preventDefault()); // keep focus in the box
+sugg.addEventListener('click', e => { const b = e.target.closest('button[data-i]'); if (b) pick(+b.dataset.i); });
+
 $('search-form').addEventListener('submit', e => {
   e.preventDefault();
+  closeSugg(); afterVerse = null;
   const r = parseRef($('q').value);
   if (r.error) { $('err').textContent = r.error; return; }
   $('q').blur();
@@ -488,7 +623,7 @@ document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click'
 window.addEventListener('hashchange', () => { const r = hashToRef(location.hash.slice(1)); if (r) show(r, false); });
 
 setTranslation(translation);
-show(hashToRef(location.hash.slice(1)) || parseRef('John 3:16-36'), false);
+{ const r0 = hashToRef(location.hash.slice(1)); if (r0) show(r0, false); }
 </script>
 </body>
 </html>
