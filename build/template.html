@@ -117,6 +117,7 @@ button, input { font: inherit; color: inherit; }
   border: 1px solid var(--line); background: var(--chip); color: var(--ink); border-radius: 8px;
   min-height: 36px; padding: 6px 10px; font-size: 14px; cursor: pointer; font-variant-numeric: tabular-nums;
 }
+.ew-open { margin-left: auto; font-size: 14px; font-weight: 600; color: var(--stripe); text-decoration: none; padding: 8px 0; }
 .ew-jumps button[aria-pressed="true"] { background: var(--stripe); color: var(--surface); border-color: var(--stripe); }
 .welcome { color: var(--muted); font-size: 15px; text-align: center; padding: 40px 16px; }
 .error:empty { display: none; }
@@ -218,11 +219,16 @@ details.cl[open] > summary .chev { transform: rotate(180deg); }
 .ew-chap + .ew-chap { margin-top: 14px; }
 .ew-chap h5 { margin: 0; font-size: 15px; font-weight: 700; }
 .ew-frame {
-  /* The embedded site spans the whole screen width, breaking out of the reading column and the card. */
-  display: block; width: 100vw; margin-left: -50vw; /* exact values set by fitFrames() */
+  display: block; width: 100%; margin: 0;
   height: calc(100vh - var(--bar-h, 0px) - 64px); height: calc(100dvh - var(--bar-h, 0px) - 64px); min-height: 420px;
   border: 0; background: transparent;
 }
+/* When the embed's card is open, the whole card (its tab included) spans the screen width; fitFrames() sets
+   the exact width and offset. The embed then runs edge to edge under the tab. */
+details.c.full[open] { border-radius: 0; border-left-width: 4px; border-right: 0; }
+details.c.full[open] > summary { border-radius: 0; }
+details.c.full[open] > .c-body { padding: 4px 0 0; }
+details.c.full[open] > .c-body > * > :not(iframe) { margin-left: 16px; margin-right: 16px; }
 
 @media (min-width: 900px) {
   .ref h2 { font-size: 36px; }
@@ -482,14 +488,13 @@ async function renderEW() {
     const url = ewSlug(r.book, c);
     const hits = whole ? [] : (secs[`${r.book.slug}-${c}`] || []).filter(s => s[1] <= b && s[2] >= a);
     const first = hits.length ? `#section-${hits[0][0]}` : '';
-    const jumps = hits.length > 0 ? `<div class="ew-jumps"><span class="small">Jump to</span>${
-      hits.map((s, i) => `<button type="button" data-sec="${s[0]}" aria-pressed="${i === 0}">${cs.length > 1 ? c + ':' : 'v. '}${rangeTxt(s[1], s[2])}</button>`).join('')}</div>`
-      : '';
+    const jumps = `<div class="ew-jumps">${hits.length ? `<span class="small">Jump to</span>${
+      hits.map((s, i) => `<button type="button" data-sec="${s[0]}" aria-pressed="${i === 0}">${cs.length > 1 ? c + ':' : 'v. '}${rangeTxt(s[1], s[2])}</button>`).join('')}` : ''}
+      <a class="ew-open" href="${url}${first}" target="_blank" rel="noopener">Open on Enduring Word ↗</a></div>`;
     return `<div class="ew-chap" data-url="${url}">
       ${cs.length > 1 ? `<h5>${esc(label)} ${c}</h5>` : ''}
       ${jumps}
       <iframe class="ew-frame" data-src="${url}${first}" title="Enduring Word commentary on ${esc(label)} ${c}"></iframe>
-      <a class="link-btn" href="${url}${first}" target="_blank" rel="noopener">Open ${esc(label)} ${c} on Enduring Word ↗</a>
     </div>`;
   }).join('');
   $('ew-body').innerHTML = parts;
@@ -501,7 +506,7 @@ $('ew-body').addEventListener('click', e => {
   const box = btn.closest('.ew-chap'), f = box.querySelector('iframe');
   const src = `${box.dataset.url}#section-${btn.dataset.sec}`;
   if (f.hasAttribute('data-src')) f.dataset.src = src; else f.src = src;
-  box.querySelector('a.link-btn').href = src;
+  box.querySelector('a.ew-open').href = src;
   box.querySelectorAll('.ew-jumps button').forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
 });
 // Only load the (heavy) Enduring Word page when its row is actually open.
@@ -572,12 +577,16 @@ async function fillCl(d) {
 $('cl-body').addEventListener('toggle', e => { if (e.target.matches('details.cl') && e.target.open) fillCl(e.target); }, true);
 
 /* ---------- sticky commentary tabs ---------- */
-// Line each embed up with the screen's left edge and make it exactly as wide as the page (without scrollbar).
+// An open card that holds an embed is stretched to the page's full width (scrollbar excluded).
 function fitFrames() {
   const w = document.documentElement.clientWidth;
-  document.querySelectorAll('.ew-frame').forEach(f => {
-    const left = f.parentElement.getBoundingClientRect().left + parseFloat(getComputedStyle(f.parentElement).paddingLeft || 0);
-    f.style.width = w + 'px'; f.style.marginLeft = -left + 'px';
+  document.querySelectorAll('details.c').forEach(d => {
+    const full = d.open && !!d.querySelector('.ew-frame');
+    d.classList.toggle('full', full);
+    d.style.width = ''; d.style.marginLeft = '';
+    if (!full) return;
+    const left = d.getBoundingClientRect().left;
+    d.style.width = w + 'px'; d.style.marginLeft = -left + 'px';
   });
 }
 addEventListener('resize', fitFrames);
