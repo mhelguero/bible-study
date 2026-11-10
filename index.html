@@ -182,6 +182,7 @@ details.c.page[open] > summary { padding-top: calc(14px + env(safe-area-inset-to
 details.c.page[open] > .c-body {
   height: calc(100vh - var(--sum-h, 64px)); height: calc(100dvh - var(--sum-h, 64px));
   overflow-y: auto; overscroll-behavior: contain; border-top: 0;
+  align-content: start; /* don't stretch the rows to fill the screen when there's little content */
   padding-bottom: calc(18px + env(safe-area-inset-bottom));
 }
 details.c.page[open] > .c-body > * { width: 100%; max-width: 1180px; margin-left: auto; margin-right: auto; }
@@ -208,7 +209,11 @@ details[open] .chev { transform: rotate(180deg); }
 .note-sec p, .cl-unit p { margin: 0; font-family: var(--font-scripture); font-size: 17px; line-height: 1.7; }
 @media (min-width: 900px) { .note-sec p, .cl-unit p { font-size: 18px; } }
 /* Henry's outline: I. = heading, then 1. / (1.) / [1.] indented a step each, with the number hanging. */
-.mh-h { margin: 6px 0 0; font-family: var(--font-ui); font-size: 16px; font-weight: 700; line-height: 1.4; }
+.note-sec p.mh-h {
+  margin: 14px 0 2px; padding: 10px 14px; font-family: var(--font-ui); font-size: 18px; font-weight: 700; line-height: 1.4;
+  background: color-mix(in srgb, var(--stripe) 12%, var(--surface)); border-left: 4px solid var(--stripe); border-radius: 0 8px 8px 0;
+}
+.mh-h .rn { color: var(--stripe); margin-right: .35em; }
 .note-sec p.lv { position: relative; padding-left: calc(var(--lv) * 1.6em); }
 .note-sec p.lv > .pt { position: absolute; left: calc(var(--lv) * 1.6em - 1.6em); width: 1.5em; text-align: right; padding-right: .35em; box-sizing: border-box; }
 .note-sec p.lv > .pt.wide { width: 2.2em; left: calc(var(--lv) * 1.6em - 2.2em); }
@@ -608,7 +613,8 @@ async function fillCl(d) {
   const units = (data[c] || []).filter(u => u[0] === 0 ? whole : (u[0] <= r.v2 && u[1] >= r.v1));
   box.innerHTML = units.length ? units.map(([a, b, items]) => {
     const label = a === 0 ? `${esc(r.book.name === 'Psalms' ? 'Psalm' : r.book.name)} ${c} introduction` : (a === b ? `Verse ${a}` : `Verses ${a}–${b >= 999 ? 'end' : b}`);
-    return `<div class="cl-unit"><p class="note-head"><span class="vpill">${label}</span></p>` + items.map(([k, h]) => k === 'h' ? `<h5>${h}</h5>` : `<p>${h}</p>`).join('') + '</div>';
+    const body = items.filter(([, h]) => !/^\s*(?:<b>)?\s*Verses?\s+[\d\s,–-]+\.?\s*(?:<\/b>)?\s*$/i.test(h)); // repeats the pill
+    return `<div class="cl-unit"><p class="note-head"><span class="vpill">${label}</span></p>` + body.map(([k, h]) => k === 'h' ? `<h5>${h}</h5>` : `<p>${h}</p>`).join('') + '</div>';
   }).join('') : '<p class="small">No note on these verses.</p>';
 }
 $('cl-body').addEventListener('toggle', e => { if (e.target.matches('details.cl') && e.target.open) fillCl(e.target); }, true);
@@ -684,9 +690,10 @@ function henryRefs(s) {
 const PT = '\u0001';
 function henrySplit(s) {
   // A reference like "Mal. ii. 10." ends in a number too: no split when a Roman-numeral chapter comes before it.
-  const afterRef = (str, off) => /\s[ivxlc]{1,7}\.?\s*\d*\.?$/.test(str.slice(Math.max(0, off - 12), off + 1));
+  // ("Mal. ii. 10. Our…": the "10." is the verse of a reference, because a Roman-numeral chapter sits right before it)
+  const afterRef = (str, off) => /\s[ivxlc]{1,7}\.$/.test(str.slice(Math.max(0, off - 10), off + 1));
   return s.replace(/([.,:;!?—])\s*(\((\d{1,2})\.\)|\[\d{1,2}\.\])\s+(?=[A-Z])/g, `$1${PT}$2 `)
-    .replace(/([.:;!?—])\s+(\d{1,2}\.)\s+(?=[A-Z])/g, (m, p1, n, off, str) => afterRef(str, off) ? m : `${p1}${PT}${n} `)
+    .replace(/([.,:;!?—])\s+(\d{1,2}\.)\s+(?=[A-Z])/g, (m, p1, n, off, str) => afterRef(str, off) ? m : `${p1}${PT}${n} `)
     .split(PT);
 }
 function henryLevel(marker) {
@@ -696,14 +703,22 @@ function henryLevel(marker) {
   return 3; // [1.]
 }
 function henryHtml(paras) {
-  let lv = 0, out = '';
+  let lv = 0, out = '', lead = '';
   for (const p of paras) {
     if (p[3]) { out += `<h5>${esc(p[2])}</h5>`; lv = 0; continue; }
-    for (const chunk of henrySplit(henryRefs(esc(p[2])))) {
+    for (let chunk of henrySplit(henryRefs(esc(p[2])))) {
+      // a short lead-in on its own ("Nay," before "2. They gave…") is carried into the next point
+      if (/^[^.]{1,14},$/.test(chunk.trim())) { lead += chunk.trim() + ' '; continue; }
+      if (lead) {
+        const mk = chunk.match(/^(\(\d{1,2}\.\)|\[\d{1,2}\.\]|\d{1,2}\.)\s+/);
+        const rest = (mk ? chunk.slice(mk[0].length) : chunk).replace(/^([A-Z])(?=[a-z])/, c => c.toLowerCase());
+        chunk = mk ? `${mk[0]}${lead}${rest}` : lead + rest;
+        lead = '';
+      }
       const roman = chunk.match(/^([IVX]{1,5}\.)\s+((?:[^.?!(]|\([^)]*\)){2,160}?[.?!:])(\s|$)/);
       if (roman) {
         lv = 0;
-        out += `<p class="mh-h">${roman[1]} ${roman[2]}</p>`;
+        out += `<p class="mh-h"><span class="rn">${roman[1]}</span>${roman[2]}</p>`;
         const rest = chunk.slice(roman[0].length).trim();
         if (rest) out += `<p>${rest}</p>`;
         continue;
