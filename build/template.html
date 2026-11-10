@@ -126,7 +126,6 @@ main { max-width: 760px; margin: 0 auto; padding: 24px max(16px, env(safe-area-i
 .passage { display: grid; gap: 12px; }
 .ref { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .ref h2 { font-family: var(--font-scripture); font-weight: 600; font-size: 30px; line-height: 1.15; margin: 0; text-wrap: balance; }
-.ref .tr { font-size: 13px; color: var(--muted); font-weight: 600; letter-spacing: .04em; }
 .scripture { font-family: var(--font-scripture); font-size: 19px; line-height: 1.7; max-width: 65ch; }
 .scripture p { margin: 0 0 .6em; }
 .chap-mark { display: block; font-family: var(--font-ui); font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; margin: 1em 0 .3em; }
@@ -157,7 +156,9 @@ sup.v { font-family: var(--font-ui); font-size: 11px; font-weight: 700; color: v
 .vnav button:disabled { visibility: hidden; }
 .vnav .next { margin-left: auto; }
 .comms-h { font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0 0 2px; }
+html, body { overflow-x: clip; } /* the full-width embeds count the scrollbar in 100vw */
 details.c {
+  scroll-margin-top: calc(var(--bar-h, 0px) + 8px);
   background: var(--surface);
   border: 1px solid var(--line);
   border-left: 4px solid var(--stripe);
@@ -169,6 +170,11 @@ details.c > summary {
   padding: 14px 16px; min-height: 56px;
 }
 details.c > summary::-webkit-details-marker { display: none; }
+/* While a commentary is open, its tab sticks under the search bar so it can be closed from anywhere in it. */
+details.c[open] > summary {
+  position: sticky; top: var(--bar-h, 0px); z-index: 4; background: var(--surface);
+  border-radius: 10px 10px 0 0; box-shadow: 0 1px 0 var(--line);
+}
 .c-name { font-weight: 600; font-size: 17px; }
 .c-by { font-size: 13px; color: var(--muted); }
 .chev { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--chip); color: var(--stripe); transition: transform .2s; }
@@ -212,8 +218,9 @@ details.cl[open] > summary .chev { transform: rotate(180deg); }
 .ew-chap + .ew-chap { margin-top: 14px; }
 .ew-chap h5 { margin: 0; font-size: 15px; font-weight: 700; }
 .ew-frame {
-  /* Run the embedded site edge to edge inside the card, with no frame of its own, so it reads as part of the page. */
-  display: block; width: calc(100% + 32px); margin: 0 -16px; height: 82vh; min-height: 480px;
+  /* The embedded site spans the whole screen width, breaking out of the reading column and the card. */
+  display: block; width: 100vw; margin-left: -50vw; /* exact values set by fitFrames() */
+  height: calc(100vh - var(--bar-h, 0px) - 64px); height: calc(100dvh - var(--bar-h, 0px) - 64px); min-height: 420px;
   border: 0; background: transparent;
 }
 
@@ -256,7 +263,7 @@ details.cl[open] > summary .chev { transform: rotate(180deg); }
 <p class="welcome" id="welcome">Search for a passage to see the text and commentaries.</p>
 <main id="main" hidden>
   <section class="passage" aria-live="polite">
-    <div class="ref"><h2 id="ref"></h2><span class="tr" id="tr-label">KING JAMES VERSION</span></div>
+    <div class="ref"><h2 id="ref"></h2></div>
     <div class="scripture" id="text"><p class="loading">Loading the passage…</p></div>
   </section>
 
@@ -432,7 +439,6 @@ function rangeIn(r, c) {
 
 async function renderText() {
   const r = current, tr = translation;
-  $('tr-label').textContent = TRANSLATIONS[tr].label;
   $('copy').innerHTML = TRANSLATIONS[tr].notice;
   if (!API_KEY || /PASTE/i.test(API_KEY)) {
     $('text').innerHTML = '<p class="error">Bible text needs your API.Bible key. Open <strong>config.js</strong> in the GitHub repository and paste your key there.</p>';
@@ -564,6 +570,30 @@ async function fillCl(d) {
   }).join('') : '<p class="small">No note on these verses.</p>';
 }
 $('cl-body').addEventListener('toggle', e => { if (e.target.matches('details.cl') && e.target.open) fillCl(e.target); }, true);
+
+/* ---------- sticky commentary tabs ---------- */
+// Line each embed up with the screen's left edge and make it exactly as wide as the page (without scrollbar).
+function fitFrames() {
+  const w = document.documentElement.clientWidth;
+  document.querySelectorAll('.ew-frame').forEach(f => {
+    const left = f.parentElement.getBoundingClientRect().left + parseFloat(getComputedStyle(f.parentElement).paddingLeft || 0);
+    f.style.width = w + 'px'; f.style.marginLeft = -left + 'px';
+  });
+}
+addEventListener('resize', fitFrames);
+new MutationObserver(fitFrames).observe(document.getElementById('main'), { childList: true, subtree: true });
+document.querySelectorAll('details.c').forEach(d => d.addEventListener('toggle', fitFrames));
+function setBarH() {
+  const bar = document.querySelector('.bar');
+  const sticky = getComputedStyle(bar).position === 'sticky';
+  document.documentElement.style.setProperty('--bar-h', sticky ? bar.offsetHeight + 'px' : '0px');
+}
+setBarH(); addEventListener('resize', setBarH);
+if (window.ResizeObserver) new ResizeObserver(setBarH).observe(document.querySelector('.bar'));
+document.querySelectorAll('details.c').forEach(d => d.addEventListener('toggle', () => {
+  // Closing from far down a long commentary: bring its tab back into view instead of leaving the reader lost.
+  if (!d.open && d.getBoundingClientRect().top < 0) d.scrollIntoView({ block: 'start' });
+}));
 
 /* ---------- previous / next verse ---------- */
 function stepRef(r, dir) {
