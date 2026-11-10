@@ -157,9 +157,7 @@ sup.v { font-family: var(--font-ui); font-size: 11px; font-weight: 700; color: v
 .vnav button:disabled { visibility: hidden; }
 .vnav .next { margin-left: auto; }
 .comms-h { font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0 0 2px; }
-html, body { overflow-x: clip; } /* the full-width embeds count the scrollbar in 100vw */
 details.c {
-  scroll-margin-top: calc(var(--bar-h, 0px) + 8px);
   background: var(--surface);
   border: 1px solid var(--line);
   border-left: 4px solid var(--stripe);
@@ -171,11 +169,25 @@ details.c > summary {
   padding: 14px 16px; min-height: 56px;
 }
 details.c > summary::-webkit-details-marker { display: none; }
-/* While a commentary is open, its tab sticks under the search bar so it can be closed from anywhere in it. */
-details.c[open] > summary {
-  position: sticky; top: var(--bar-h, 0px); z-index: 4; background: var(--surface);
-  border-radius: 10px 10px 0 0; box-shadow: 0 1px 0 var(--line);
+/* An open commentary becomes its own full-screen page: tab at the top, its content below. The page behind
+   doesn't scroll. Tapping the tab (or the phone's Back) returns to the passage where it was. */
+html.paged, html.paged body { overflow: hidden; }
+details.c.page[open] {
+  position: fixed; inset: 0; z-index: 50; margin: 0; border: 0; border-left: 4px solid var(--stripe); border-radius: 0;
+  background: var(--surface); overflow: hidden;
 }
+details.c.page[open] > summary { padding-top: calc(14px + env(safe-area-inset-top)); box-shadow: 0 1px 0 var(--line); position: relative; z-index: 1; }
+details.c.page[open] > .c-body {
+  height: calc(100vh - var(--sum-h, 64px)); height: calc(100dvh - var(--sum-h, 64px));
+  overflow-y: auto; overscroll-behavior: contain; border-top: 0;
+  padding-bottom: calc(18px + env(safe-area-inset-bottom));
+}
+details.c.page[open] > .c-body > * { width: 100%; max-width: 760px; margin-left: auto; margin-right: auto; }
+/* The embed's page: the Jump to row stays put and the embedded site fills the rest edge to edge. */
+details.c.page[open] > #ew-body { overflow: hidden; display: flex; flex-direction: column; padding: 0; gap: 0; }
+details.c.page[open] > #ew-body > .ew-chap { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 0; max-width: none; }
+details.c.page[open] > #ew-body .ew-jumps { flex: none; padding: 8px 16px; box-shadow: 0 1px 0 var(--line); }
+details.c.page[open] > #ew-body .ew-frame { flex: 1; min-height: 0; height: auto; }
 .c-name { font-weight: 600; font-size: 17px; }
 .c-by { font-size: 13px; color: var(--muted); }
 .chev { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--chip); color: var(--stripe); transition: transform .2s; }
@@ -220,15 +232,9 @@ details.cl[open] > summary .chev { transform: rotate(180deg); }
 .ew-chap h5 { margin: 0; font-size: 15px; font-weight: 700; }
 .ew-frame {
   display: block; width: 100%; margin: 0;
-  height: calc(100vh - var(--bar-h, 0px) - 64px); height: calc(100dvh - var(--bar-h, 0px) - 64px); min-height: 420px;
+  height: 70vh;
   border: 0; background: transparent;
 }
-/* When the embed's card is open, the whole card (its tab included) spans the screen width; fitFrames() sets
-   the exact width and offset. The embed then runs edge to edge under the tab. */
-details.c.full[open] { border-radius: 0; border-left-width: 4px; border-right: 0; }
-details.c.full[open] > summary { border-radius: 0; }
-details.c.full[open] > .c-body { padding: 4px 0 0; }
-details.c.full[open] > .c-body > * > :not(iframe) { margin-left: 16px; margin-right: 16px; }
 
 @media (min-width: 900px) {
   .ref h2 { font-size: 36px; }
@@ -576,33 +582,32 @@ async function fillCl(d) {
 }
 $('cl-body').addEventListener('toggle', e => { if (e.target.matches('details.cl') && e.target.open) fillCl(e.target); }, true);
 
-/* ---------- sticky commentary tabs ---------- */
-// An open card that holds an embed is stretched to the page's full width (scrollbar excluded).
-function fitFrames() {
-  const w = document.documentElement.clientWidth;
-  document.querySelectorAll('details.c').forEach(d => {
-    const full = d.open && !!d.querySelector('.ew-frame');
-    d.classList.toggle('full', full);
-    d.style.width = ''; d.style.marginLeft = '';
-    if (!full) return;
-    const left = d.getBoundingClientRect().left;
-    d.style.width = w + 'px'; d.style.marginLeft = -left + 'px';
-  });
-}
-addEventListener('resize', fitFrames);
-new MutationObserver(fitFrames).observe(document.getElementById('main'), { childList: true, subtree: true });
-document.querySelectorAll('details.c').forEach(d => d.addEventListener('toggle', fitFrames));
-function setBarH() {
-  const bar = document.querySelector('.bar');
-  const sticky = getComputedStyle(bar).position === 'sticky';
-  document.documentElement.style.setProperty('--bar-h', sticky ? bar.offsetHeight + 'px' : '0px');
-}
-setBarH(); addEventListener('resize', setBarH);
-if (window.ResizeObserver) new ResizeObserver(setBarH).observe(document.querySelector('.bar'));
-document.querySelectorAll('details.c').forEach(d => d.addEventListener('toggle', () => {
-  // Closing from far down a long commentary: bring its tab back into view instead of leaving the reader lost.
-  if (!d.open && d.getBoundingClientRect().top < 0) d.scrollIntoView({ block: 'start' });
+/* ---------- commentary pages ---------- */
+let pageScrollY = 0, closingByBack = false;
+try { history.scrollRestoration = 'manual'; } catch (e) {} // we restore the passage position ourselves
+function setSumH(d) { document.documentElement.style.setProperty('--sum-h', d.querySelector('summary').offsetHeight + 'px'); }
+// Remember where the reader was before the card opens (by the time 'toggle' fires the layout has changed).
+document.querySelectorAll('details.c > summary').forEach(s => s.addEventListener('click', () => {
+  if (!s.parentElement.open) pageScrollY = scrollY;
 }));
+document.querySelectorAll('details.c').forEach(d => d.addEventListener('toggle', () => {
+  if (d.open) {
+    document.querySelectorAll('details.c[open]').forEach(o => { if (o !== d) o.open = false; });
+    d.classList.add('page'); document.documentElement.classList.add('paged'); setSumH(d);
+    d.querySelector('.c-body').scrollTop = 0;
+    try { history.pushState({ panel: d.id }, ''); } catch (e) {}
+  } else if (d.classList.contains('page')) {
+    d.classList.remove('page'); document.documentElement.classList.remove('paged');
+    scrollTo(0, pageScrollY);
+    if (!closingByBack && history.state && history.state.panel === d.id) history.back();
+    closingByBack = false;
+  }
+}));
+addEventListener('popstate', () => {
+  const d = document.querySelector('details.c.page[open]');
+  if (d) { closingByBack = true; d.open = false; }
+});
+addEventListener('resize', () => { const d = document.querySelector('details.c.page[open]'); if (d) setSumH(d); });
 
 /* ---------- previous / next verse ---------- */
 function stepRef(r, dir) {
