@@ -468,9 +468,9 @@ async function renderEW() {
     const url = ewSlug(r.book, c);
     const hits = whole ? [] : (secs[`${r.book.slug}-${c}`] || []).filter(s => s[1] <= b && s[2] >= a);
     const first = hits.length ? `#section-${hits[0][0]}` : '';
-    const jumps = hits.length > 0 ? `<div class="ew-jumps"><span class="small">Guzik's section${hits.length > 1 ? 's' : ''} on your verses:</span>${
+    const jumps = hits.length > 0 ? `<div class="ew-jumps"><span class="small">Jump to</span>${
       hits.map((s, i) => `<button type="button" data-sec="${s[0]}" aria-pressed="${i === 0}">${cs.length > 1 ? c + ':' : 'v. '}${rangeTxt(s[1], s[2])}</button>`).join('')}</div>`
-      : (whole ? '' : `<p class="small">Look for Guzik's headings whose verse numbers in brackets cover your verses.</p>`);
+      : '';
     return `<div class="ew-chap" data-url="${url}">
       ${cs.length > 1 ? `<h5>${esc(label)} ${c}</h5>` : ''}
       ${jumps}
@@ -478,7 +478,7 @@ async function renderEW() {
       <a class="link-btn" href="${url}${first}" target="_blank" rel="noopener">Open ${esc(label)} ${c} on Enduring Word ↗</a>
     </div>`;
   }).join('');
-  $('ew-body').innerHTML = `<p class="small">David Guzik's commentary, shown from enduringword.com and opened at the section on your verses. For dark mode, tap ☽ at the top of the commentary once; it stays on. If it doesn't load, use the button below it.</p>${parts}`;
+  $('ew-body').innerHTML = parts;
   if ($('c-ew').open) loadEW();
 }
 $('ew-body').addEventListener('click', e => {
@@ -501,25 +501,13 @@ const bhBook = b => b.name === 'Song of Solomon' ? 'songs' : b.name.toLowerCase(
 const bhUrl = (b, c, v) => `https://biblehub.com/commentaries/${bhBook(b)}/${c}-${v}.htm`;
 function renderBH() {
   const r = current, c = r.c1, label = r.book.name === 'Psalms' ? 'Psalm' : r.book.name;
-  let chips = '';
-  for (let v = r.v1; v <= r.v2; v++) chips += `<button type="button" data-v="${v}" aria-pressed="${v === r.v1}">${v}</button>`;
   const url = bhUrl(r.book, c, r.v1);
-  $('bh-body').innerHTML = `<p class="small">Classic commentaries on one verse at a time, shown from biblehub.com. Pick a verse:</p>
-    <div class="ew-jumps bh-verses">${chips}</div>
-    <iframe class="ew-frame bh-frame" data-src="${url}" title="Bible Hub commentaries on ${esc(label)} ${c}"></iframe>
+  $('bh-body').innerHTML = `<iframe class="ew-frame bh-frame" data-src="${url}" title="Bible Hub commentaries on ${esc(label)} ${c}"></iframe>
     <a class="link-btn" href="${url}" target="_blank" rel="noopener">Open ${esc(label)} ${c}:${r.v1} on Bible Hub ↗</a>`;
   if ($('c-bh').open) loadBH();
 }
 function loadBH() { $('bh-body').querySelectorAll('iframe[data-src]').forEach(f => { f.src = f.dataset.src; f.removeAttribute('data-src'); }); }
 $('c-bh').addEventListener('toggle', () => { if ($('c-bh').open) loadBH(); });
-$('bh-body').addEventListener('click', e => {
-  const btn = e.target.closest('.bh-verses button'); if (!btn) return;
-  const r = current, v = +btn.dataset.v, url = bhUrl(r.book, r.c1, v), f = $('bh-body').querySelector('iframe');
-  if (f.hasAttribute('data-src')) f.dataset.src = url; else f.src = url;
-  const a = $('bh-body').querySelector('a.link-btn'); a.href = url;
-  a.textContent = `Open ${r.book.name === 'Psalms' ? 'Psalm' : r.book.name} ${r.c1}:${v} on Bible Hub ↗`;
-  $('bh-body').querySelectorAll('.bh-verses button').forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
-});
 
 /* ---------- previous / next verse ---------- */
 function stepRef(r, dir) {
