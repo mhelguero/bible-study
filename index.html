@@ -50,6 +50,7 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; }
 body {
+  min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column;
   background: var(--paper);
   color: var(--ink);
   font-family: var(--font-ui);
@@ -123,7 +124,8 @@ button, input { font: inherit; color: inherit; }
 .error:empty { display: none; }
 
 /* ---------- passage ---------- */
-main { max-width: 760px; margin: 0 auto; padding: 24px max(16px, env(safe-area-inset-left)) calc(48px + env(safe-area-inset-bottom)); display: grid; gap: 28px; }
+main { width: 100%; max-width: 760px; margin: 0 auto; padding: 24px max(16px, env(safe-area-inset-left)) 0; display: flex; flex-direction: column; gap: 28px; flex: 1 0 auto; }
+main > * { min-width: 0; }
 .passage { display: grid; gap: 12px; }
 .ref { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .ref h2 { font-family: var(--font-scripture); font-weight: 600; font-size: 30px; line-height: 1.15; margin: 0; text-wrap: balance; }
@@ -142,7 +144,7 @@ sup.v { font-family: var(--font-ui); font-size: 11px; font-weight: 700; color: v
 .scripture .q1, .scripture .q, .scripture .pi1, .scripture .pi { padding-left: 1.2em; text-indent: -.6em; margin: 0; }
 .scripture .q2, .scripture .pi2 { padding-left: 2.4em; text-indent: -.6em; margin: 0; }
 .scripture .b { height: .6em; }
-.site-foot { border-top: 1px solid var(--line); padding: 16px 0 calc(16px + env(safe-area-inset-bottom)); }
+.site-foot { margin-top: auto; border-top: 1px solid var(--line); padding: 16px 0 calc(16px + env(safe-area-inset-bottom)); }
 .copy { font-size: 12px; line-height: 1.5; color: var(--muted); margin: 0; max-width: 65ch; }
 .copy a { color: inherit; }
 .loading { color: var(--muted); font-size: 15px; }
@@ -182,7 +184,8 @@ details.c.page[open] > .c-body {
   overflow-y: auto; overscroll-behavior: contain; border-top: 0;
   padding-bottom: calc(18px + env(safe-area-inset-bottom));
 }
-details.c.page[open] > .c-body > * { width: 100%; max-width: 760px; margin-left: auto; margin-right: auto; }
+details.c.page[open] > .c-body > * { width: 100%; max-width: 1180px; margin-left: auto; margin-right: auto; }
+@media (min-width: 900px) { details.c.page[open] > .c-body { padding-left: 32px; padding-right: 32px; } }
 /* The embed's page: the Jump to row stays put and the embedded site fills the rest edge to edge. */
 details.c.page[open] > #ew-body { overflow: hidden; display: flex; flex-direction: column; padding: 0; gap: 0; }
 details.c.page[open] > #ew-body > .ew-chap { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 0; max-width: none; }
@@ -202,7 +205,13 @@ details[open] .chev { transform: rotate(180deg); }
   display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: .03em; font-variant-numeric: tabular-nums;
   color: var(--stripe); background: color-mix(in srgb, var(--stripe) 14%, var(--surface)); border-radius: 999px; padding: 3px 10px;
 }
-.note-sec p, .cl-unit p { margin: 0; font-family: var(--font-scripture); font-size: 17px; line-height: 1.7; max-width: 65ch; }
+.note-sec p, .cl-unit p { margin: 0; font-family: var(--font-scripture); font-size: 17px; line-height: 1.7; }
+@media (min-width: 900px) { .note-sec p, .cl-unit p { font-size: 18px; } }
+/* Henry's outline: I. = heading, then 1. / (1.) / [1.] indented a step each, with the number hanging. */
+.mh-h { margin: 6px 0 0; font-family: var(--font-ui); font-size: 16px; font-weight: 700; line-height: 1.4; }
+.note-sec p.lv { position: relative; padding-left: calc(var(--lv) * 1.6em); }
+.note-sec p.lv > .pt { position: absolute; left: calc(var(--lv) * 1.6em - 1.6em); width: 1.5em; text-align: right; padding-right: .35em; box-sizing: border-box; }
+.note-sec p.lv > .pt.wide { width: 2.2em; left: calc(var(--lv) * 1.6em - 2.2em); }
 .note-sec h5, .cl-unit h5 { margin: 4px 0 0; font-size: 15px; font-weight: 700; line-height: 1.4; }
 .note-sec .pt { font-family: var(--font-ui); font-weight: 700; font-size: 15px; }
 .mh-part, .mh-full { display: grid; gap: 12px; }
@@ -669,24 +678,48 @@ function henryRefs(s) {
     return ` (v. ${nums})`;
   });
 }
-// Henry's outline points ("I. Who this Nicodemus was.", "2. He was a ruler…", "[1.] …") are set in bold so
-// each point stands out; a Roman-numeral point also bolds its opening sentence, which reads as its heading.
-function henryPoints(s) {
-  // the heading sentence may contain a bracketed reference such as "(v. 2)"
-  const roman = s.match(/^([IVX]{1,5}\.)\s+((?:[^.?!(]|\([^)]*\)){2,160}?[.?!:])(\s|$)/);
-  const num = roman ? null : s.match(/^(\[?\d{1,2}\.\]?|\(\d{1,2}\.\))\s/);
-  if (roman) s = `<span class="pt">${roman[1]} ${roman[2]}</span>${s.slice(roman[0].length - roman[3].length)}`;
-  else if (num) s = `<span class="pt">${num[1]}</span>${s.slice(num[1].length)}`;
-  // A reference like "Mal. ii. 10." ends in a number too: no break when a Roman-numeral chapter comes before it.
+/* Henry's outline. He numbers his points I., II. (main points), 1., 2. (under those), (1.), (2.) and [1.], [2.]
+   (deeper). Each point becomes its own block: Roman points are headings, the others are indented one step per
+   level with the number hanging in the margin. Unnumbered paragraphs stay at the level of the point above. */
+const PT = '\u0001';
+function henrySplit(s) {
+  // A reference like "Mal. ii. 10." ends in a number too: no split when a Roman-numeral chapter comes before it.
   const afterRef = (str, off) => /\s[ivxlc]{1,7}\.?\s*\d*\.?$/.test(str.slice(Math.max(0, off - 12), off + 1));
-  // Numbered sub-points inside a paragraph ("…account:— (1.) As one…", "…yet. 1. This was…") start a new line.
-  return s.replace(/([.:;!?—])\s*\((\d{1,2})\.\)\s/g, '$1<br><span class="pt">($2.)</span> ')
-    .replace(/([.:;!?—])\s+(\[?\d{1,2}\.\]?)\s+(?=[A-Z])/g, (m, p1, n, off, str) =>
-      afterRef(str, off) ? m : `${p1}<br><span class="pt">${n}</span> `);
+  return s.replace(/([.,:;!?—])\s*(\((\d{1,2})\.\)|\[\d{1,2}\.\])\s+(?=[A-Z])/g, `$1${PT}$2 `)
+    .replace(/([.:;!?—])\s+(\d{1,2}\.)\s+(?=[A-Z])/g, (m, p1, n, off, str) => afterRef(str, off) ? m : `${p1}${PT}${n} `)
+    .split(PT);
 }
-function paraHtml(p) {
-  return p[3] ? `<h5>${esc(p[2])}</h5>` : `<p>${henryPoints(henryRefs(esc(p[2])))}</p>`;
+function henryLevel(marker) {
+  if (/^[IVX]+\.$/.test(marker)) return 0;
+  if (/^\d+\.$/.test(marker)) return 1;
+  if (/^\(\d+\.\)$/.test(marker)) return 2;
+  return 3; // [1.]
 }
+function henryHtml(paras) {
+  let lv = 0, out = '';
+  for (const p of paras) {
+    if (p[3]) { out += `<h5>${esc(p[2])}</h5>`; lv = 0; continue; }
+    for (const chunk of henrySplit(henryRefs(esc(p[2])))) {
+      const roman = chunk.match(/^([IVX]{1,5}\.)\s+((?:[^.?!(]|\([^)]*\)){2,160}?[.?!:])(\s|$)/);
+      if (roman) {
+        lv = 0;
+        out += `<p class="mh-h">${roman[1]} ${roman[2]}</p>`;
+        const rest = chunk.slice(roman[0].length).trim();
+        if (rest) out += `<p>${rest}</p>`;
+        continue;
+      }
+      const num = chunk.match(/^(\(\d{1,2}\.\)|\[\d{1,2}\.\]|\d{1,2}\.)\s+/);
+      if (num) {
+        lv = henryLevel(num[1]);
+        out += `<p class="lv" style="--lv:${lv}"><span class="pt${num[1].length > 3 ? ' wide' : ''}">${num[1]}</span>${chunk.slice(num[0].length)}</p>`;
+      } else if (chunk.trim()) {
+        out += lv ? `<p class="lv" style="--lv:${lv}">${chunk}</p>` : `<p>${chunk}</p>`;
+      }
+    }
+  }
+  return out;
+}
+
 async function renderMH() {
   const r = current;
   $('mh-body').innerHTML = '<p class="small">Loading Matthew Henry…</p>';
@@ -713,8 +746,8 @@ async function renderMH() {
       found++;
       html += `<div class="note-sec">
         <p class="note-head"><span class="vpill">${esc(nm)} ${span}</span>${u.t ? `<span class="ttl">${esc(u.t)}</span>` : ''}</p>
-        <div class="mh-part">${(keep.length ? keep : u.p).map(paraHtml).join('')}</div>
-        ${trimmed && keep.length ? `<div class="mh-full" hidden>${u.p.map(paraHtml).join('')}</div>
+        <div class="mh-part">${henryHtml(keep.length ? keep : u.p)}</div>
+        ${trimmed && keep.length ? `<div class="mh-full" hidden>${henryHtml(u.p)}</div>
         <button type="button" class="more" data-span="${span}">Show Henry's notes on all of ${span}</button>` : ''}
       </div>`;
     }
