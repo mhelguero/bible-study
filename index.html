@@ -585,7 +585,7 @@ async function renderCL() {
   $('cl-body').innerHTML = `${have.length > 1 ? `<nav class="cl-jump" aria-label="Commentaries"><span class="small">Jump to</span>${
       have.map(([code, name]) => `<a href="#cl-${code}" data-code="${code}">${esc(name.replace(/'s (Notes|Commentary|Annotations|Commentaries)$/, ''))}</a>`).join('')}</nav>` : ''}
     <div class="cl-list">${have.map(([code, name, by]) => `
-    <details class="cl" id="cl-${code}" data-code="${code}" open>
+    <details class="cl" id="cl-${code}" data-code="${code}">
       <summary><span><span class="nm">${esc(name)}</span><span class="meta">${esc(by)}</span></span>
         <span class="chev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M3 5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></summary>
       <div class="cl-notes"></div>
@@ -593,7 +593,7 @@ async function renderCL() {
     <div class="cl-more"><a class="link-btn" href="${more}" target="_blank" rel="noopener">More commentaries on Bible Hub ↗</a></div>`;
   if ($('c-cl').open) fillAllCl();
 }
-// Every commentary on the page starts open; their text is fetched when the page is opened.
+// Each commentary starts closed; its text is fetched when it is opened (or jumped to).
 function fillAllCl() { $('cl-body').querySelectorAll('details.cl[open]').forEach(fillCl); }
 $('c-cl').addEventListener('toggle', () => { if ($('c-cl').open) fillAllCl(); });
 $('cl-body').addEventListener('click', e => {
