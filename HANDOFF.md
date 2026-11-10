@@ -6,8 +6,9 @@ Live version: https://claude.ai/artifact/NpDDWjSQQPZeSp3vyTEHXk
 A static web page (index.html + data/*.json). Search a passage like "John 3:16-36"; it shows the
 text (NASB 2020 by default, NLT, NIV, or Reina-Valera 1909, from API.Bible; words of Jesus in red) and three expandable commentary rows:
 - Enduring Word (David Guzik): link to the chapter on enduringword.com
-- Bible Hub: biblehub.com/commentaries/{book}/{c}-{v}.htm embedded, one verse at a time with verse buttons
-  (BibleRef was removed: it blocks embedding with X-Frame-Options)
+- Classic Commentaries: public-domain commentaries stored in the app (seamless, like Matthew Henry), one
+  collapsible section each, loaded when opened; a link goes to Bible Hub for the rest (Ellicott, Gill, Pulpit...).
+  (BibleRef was removed: it blocks embedding. The Bible Hub embed was replaced by these.)
 - Matthew Henry (complete, public domain): shown inline, trimmed to the searched verses
   using Henry's own markers ("v. 16", "ver. 16-18"), with a button to show the whole section.
 
@@ -45,3 +46,12 @@ Keep each row's link as a fallback if the embed comes up blank.
 
 ## Translation picker
 - A dropdown (#tr-select); the choice is remembered in localStorage (bsc-tr2).
+
+## Classic commentaries data
+- data/cl-{code}-{book}.json: {"chapter": [[firstVerse, lastVerse, [["h"|"p", html with <b>/<i> only], ...]], ...]}
+  (verse 0 = chapter introduction, shown only for whole-chapter searches). data/cl-index.json lists books per code.
+- Built by build/classics.py from CrossWire SWORD modules (all marked Public Domain, or printed before 1600 for
+  Geneva): Barnes (NT only), Clarke, JFB, Wesley, MHCC, Geneva, Scofield 1917, PNT (NT only), read with
+  build/sword_read.py; and from github.com/samueldotj/bible-commentaries en/poole (Poole 1683-85) and
+  en/calvin (CCEL, public domain).
+- Matthew Henry's verse markers ("ver. 3, 4", "(ver. 8)") are shown as "(v. 3, 4)" by henryRefs() at display time.

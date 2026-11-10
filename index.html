@@ -156,9 +156,6 @@ sup.v { font-family: var(--font-ui); font-size: 11px; font-weight: 700; color: v
 }
 .vnav button:disabled { visibility: hidden; }
 .vnav .next { margin-left: auto; }
-/* Bible Hub has no dark mode of its own: invert its page (and turn photos back) when this app is dark. */
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .bh-frame { filter: invert(.9) hue-rotate(180deg); background: #fff; } }
-:root[data-theme="dark"] .bh-frame { filter: invert(.9) hue-rotate(180deg); background: #fff; }
 .comms-h { font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0 0 2px; }
 details.c {
   background: var(--surface);
@@ -185,6 +182,17 @@ details[open] .chev { transform: rotate(180deg); }
 .mh-part, .mh-full { display: grid; gap: 10px; }
 [hidden] { display: none !important; }
 .more { justify-self: start; border: 1px solid var(--line); background: var(--chip); color: var(--ink); border-radius: 8px; padding: 8px 12px; min-height: 40px; font-size: 14px; font-weight: 600; cursor: pointer; }
+details.cl { border-top: 1px solid var(--line); }
+details.cl:first-child { border-top: 0; }
+details.cl > summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 0; font-weight: 700; font-size: 15px; }
+details.cl > summary::-webkit-details-marker { display: none; }
+details.cl > summary .meta { font-weight: 500; font-size: 13px; color: var(--muted); }
+details.cl[open] > summary .chev { transform: rotate(180deg); }
+.cl-list { display: grid; }
+.cl-notes { display: grid; gap: 10px; padding-bottom: 14px; }
+.cl-notes h4 { margin: 6px 0 0; font-size: 13px; font-weight: 700; color: var(--stripe); letter-spacing: .03em; }
+.cl-notes h5 { margin: 4px 0 0; font-size: 15px; font-weight: 700; }
+.cl-notes p { margin: 0; font-family: var(--font-scripture); font-size: 17px; line-height: 1.65; max-width: 65ch; }
 .outline { font-size: 14px; color: var(--muted); background: var(--chip); border-radius: 8px; padding: 10px 12px; }
 .links { display: flex; flex-wrap: wrap; gap: 8px; }
 .link-btn {
@@ -264,12 +272,12 @@ details[open] .chev { transform: rotate(180deg); }
       <div class="c-body" id="ew-body"></div>
     </details>
 
-    <details class="c" id="c-bh" style="--stripe: var(--bh)">
+    <details class="c" id="c-cl" style="--stripe: var(--bh)">
       <summary>
-        <span><span class="c-name">Bible Hub</span><br><span class="c-by">Verse-by-verse: Barnes, Ellicott, Gill, JFB and more</span></span>
+        <span><span class="c-name">Classic Commentaries</span><br><span class="c-by">Barnes, Clarke, JFB, Poole, Wesley and more</span></span>
         <span class="chev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M3 5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
       </summary>
-      <div class="c-body" id="bh-body"></div>
+      <div class="c-body" id="cl-body"></div>
     </details>
 
     <details class="c" id="c-mh" style="--stripe: var(--mh)">
@@ -496,48 +504,53 @@ function loadEW() {
 }
 $('c-ew').addEventListener('toggle', () => { if ($('c-ew').open) loadEW(); });
 
-/* ---------- Bible Hub: one page per verse with many classic commentaries ---------- */
+/* ---------- Classic commentaries (public domain, stored in data/cl-{code}-{book}.json) ---------- */
+const CLASSICS = [
+  ['barnes', "Barnes' Notes", 'Albert Barnes'], ['clarke', "Clarke's Commentary", 'Adam Clarke'],
+  ['jfb', 'Jamieson-Fausset-Brown', 'JFB'], ['poole', "Poole's Annotations", 'Matthew Poole'],
+  ['wesley', "Wesley's Notes", 'John Wesley'], ['mhcc', 'Matthew Henry Concise', 'Matthew Henry'],
+  ['pnt', "People's New Testament", 'B. W. Johnson'], ['calvin', "Calvin's Commentaries", 'John Calvin'],
+  ['geneva', 'Geneva Bible Notes', '1599'], ['scofield', 'Scofield Reference Notes', '1917'],
+];
+let clIndexP = null;
+const loadClIndex = () => clIndexP || (clIndexP = fetch('data/cl-index.json').then(r => r.json()).catch(() => { clIndexP = null; return {}; }));
+const clCache = new Map();
+function loadCl(code, slug) {
+  const k = code + '-' + slug;
+  if (!clCache.has(k)) clCache.set(k, fetch(`data/cl-${k}.json`).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .catch(e => { clCache.delete(k); throw e; }));
+  return clCache.get(k);
+}
 const bhBook = b => b.name === 'Song of Solomon' ? 'songs' : b.name.toLowerCase().replace(/\s+/g, '_');
-const bhUrl = (b, c, v) => `https://biblehub.com/commentaries/${bhBook(b)}/${c}-${v}.htm`;
-const bhLabel = r => r.book.name === 'Psalms' ? 'Psalm' : r.book.name;
-// Navigation inside the embed (Bible Hub's own arrows/links) can't be read from this page, because the
-// frame is another site. So: every load we start is "expected"; any other load means the reader moved on
-// inside Bible Hub, and the verse buttons are cleared instead of pointing at the wrong verse.
-let bhExpect = 0;
-function bhGo(url) {
-  const f = $('bh-body').querySelector('iframe'); if (!f) return;
-  if (f.hasAttribute('data-src')) { f.dataset.src = url; return; }
-  bhExpect++; f.src = url;
+async function renderCL() {
+  const r = current, idx = await loadClIndex();
+  if (current !== r) return;
+  const have = CLASSICS.filter(([code]) => (idx[code] || []).includes(r.book.slug));
+  const more = `https://biblehub.com/commentaries/${bhBook(r.book)}/${r.c1}-${r.v1}.htm`;
+  $('cl-body').innerHTML = `<div class="cl-list">${have.map(([code, name, by]) => `
+    <details class="cl" data-code="${code}">
+      <summary><span>${esc(name)} <span class="meta">${esc(by)}</span></span>
+        <span class="chev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M3 5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></summary>
+      <div class="cl-notes"></div>
+    </details>`).join('')}</div>
+    <a class="link-btn" href="${more}" target="_blank" rel="noopener">More commentaries on Bible Hub ↗</a>`;
 }
-function bhSelect(v) {
-  const r = current, a = $('bh-body').querySelector('a.link-btn');
-  $('bh-body').querySelectorAll('.bh-verses button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.v === v)));
-  if (v) { a.href = bhUrl(r.book, r.c1, v); a.textContent = `Open ${bhLabel(r)} ${r.c1}:${v} on Bible Hub ↗`; }
-  else { a.textContent = 'Open on Bible Hub ↗'; }
+async function fillCl(d) {
+  const r = current, box = d.querySelector('.cl-notes');
+  if (box.dataset.ref === refHash(r)) return;
+  box.dataset.ref = refHash(r);
+  box.innerHTML = '<p class="small">Loading…</p>';
+  let data;
+  try { data = await loadCl(d.dataset.code, r.book.slug); } catch (e) { box.innerHTML = '<p class="error">This commentary could not be loaded. Check your connection.</p>'; return; }
+  if (box.dataset.ref !== refHash(r)) return;
+  const c = r.c1, whole = r.v1 === 1 && r.v2 === r.book.chapters[c - 1];
+  const units = (data[c] || []).filter(u => u[0] === 0 ? whole : (u[0] <= r.v2 && u[1] >= r.v1));
+  box.innerHTML = units.length ? units.map(([a, b, items]) => {
+    const label = a === 0 ? `${esc(r.book.name === 'Psalms' ? 'Psalm' : r.book.name)} ${c}` : (a === b ? `v. ${a}` : `v. ${a}–${b >= 999 ? 'end' : b}`);
+    return `<h4>${label}</h4>` + items.map(([k, h]) => k === 'h' ? `<h5>${h}</h5>` : `<p>${h}</p>`).join('');
+  }).join('') : '<p class="small">No note on these verses.</p>';
 }
-function renderBH() {
-  const r = current, c = r.c1;
-  let chips = '';
-  if (r.v2 > r.v1) for (let v = r.v1; v <= r.v2; v++) chips += `<button type="button" data-v="${v}" aria-pressed="${v === r.v1}">${v}</button>`;
-  const url = bhUrl(r.book, c, r.v1);
-  $('bh-body').innerHTML = `${chips ? `<div class="ew-jumps bh-verses"><span class="small">Jump to</span>${chips}</div>` : ''}
-    <iframe class="ew-frame bh-frame" data-src="${url}" title="Bible Hub commentaries on ${esc(bhLabel(r))} ${c}"></iframe>
-    <a class="link-btn" href="${url}" target="_blank" rel="noopener">Open ${esc(bhLabel(r))} ${c}:${r.v1} on Bible Hub ↗</a>`;
-  bhExpect = 0;
-  $('bh-body').querySelector('iframe').addEventListener('load', () => {
-    if (bhExpect > 0) bhExpect--; else bhSelect(null);
-  });
-  if ($('c-bh').open) loadBH();
-}
-function loadBH() {
-  $('bh-body').querySelectorAll('iframe[data-src]').forEach(f => { bhExpect++; f.src = f.dataset.src; f.removeAttribute('data-src'); });
-}
-$('c-bh').addEventListener('toggle', () => { if ($('c-bh').open) loadBH(); });
-$('bh-body').addEventListener('click', e => {
-  const btn = e.target.closest('.bh-verses button'); if (!btn) return;
-  const v = +btn.dataset.v;
-  bhGo(bhUrl(current.book, current.c1, v)); bhSelect(v);
-});
+$('cl-body').addEventListener('toggle', e => { if (e.target.matches('details.cl') && e.target.open) fillCl(e.target); }, true);
 
 /* ---------- previous / next verse ---------- */
 function stepRef(r, dir) {
@@ -569,8 +582,16 @@ function loadMH(book) {
   }
   return mhCache.get(book.slug);
 }
+// Henry points to verses as "ver. 3, 4" or "(v. 8)"; show them all as "(v. 3, 4)".
+function henryRefs(s) {
+  s = s.replace(/\((?:v|ver|vers|verse|verses)\.\s+/g, '(v. ');
+  return s.replace(/(,\s*|\s)(v|ver|vers)\.\s+(\d+(?:\s*[-–,]\s*\d+)*)/g, (m, sep, w, nums, off, str) => {
+    if (/[A-Za-z]{1,7}\.$/.test(str.slice(Math.max(0, off - 10), off))) return m; // "Matt. v. 44" = chapter 5
+    return ` (v. ${nums})`;
+  });
+}
 function paraHtml(p) {
-  return p[3] ? `<h5>${esc(p[2])}</h5>` : `<p>${esc(p[2])}</p>`;
+  return p[3] ? `<h5>${esc(p[2])}</h5>` : `<p>${henryRefs(esc(p[2]))}</p>`;
 }
 async function renderMH() {
   const r = current;
@@ -625,7 +646,7 @@ async function show(r, push = true) {
   document.title = `${refLabel(r)} · Bible Study Commentary`;
   $('q').value = refLabel(r).replace('–', '-');
   if (push) { try { history.replaceState(null, '', '#' + refHash(r)); } catch (e) { location.hash = refHash(r); } }
-  renderText(); renderMH(); renderEW(); renderBH(); renderNav();
+  renderText(); renderMH(); renderEW(); renderCL(); renderNav();
 }
 
 function setTranslation(t) {
