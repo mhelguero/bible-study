@@ -120,6 +120,25 @@ def main():
             total += p.stat().st_size
         print(code, 'books', len(books))
     print('total MB', round(total / 1e6, 1))
+    order = ['barnes', 'clarke', 'jfb', 'poole', 'wesley', 'mhcc', 'pnt', 'calvin', 'geneva', 'scofield']
+    idx = {c: sorted(f.stem[len(f'cl-{c}-'):] for f in out.glob(f'cl-{c}-*.json')) for c in order}
+    (out / 'cl-index.json').write_text(json.dumps(idx, separators=(',', ':')))
+    write_ranges()
+
+
+def write_ranges():
+    """data/cl-ranges-{book}.json: {code: {chapter: [[first, last], ...]}}, so the app can list only the
+    commentaries that have a note on the searched verses without downloading their text."""
+    out = ROOT / 'data'
+    idx = json.loads((out / 'cl-index.json').read_text())
+    for b in INDEX:
+        rng = {}
+        for code, books in idx.items():
+            if b['slug'] not in books: continue
+            d = json.loads((out / f"cl-{code}-{b['slug']}.json").read_text())
+            rng[code] = {ch: [[u[0], u[1]] for u in units] for ch, units in d.items()}
+        (out / f"cl-ranges-{b['slug']}.json").write_text(json.dumps(rng, separators=(',', ':')))
+
 
 if __name__ == '__main__':
     main()

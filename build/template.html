@@ -522,10 +522,23 @@ function loadCl(code, slug) {
   return clCache.get(k);
 }
 const bhBook = b => b.name === 'Song of Solomon' ? 'songs' : b.name.toLowerCase().replace(/\s+/g, '_');
+const clRangeCache = new Map();
+function loadClRanges(slug) {
+  if (!clRangeCache.has(slug)) clRangeCache.set(slug, fetch(`data/cl-ranges-${slug}.json`).then(r => r.json()).catch(() => { clRangeCache.delete(slug); return null; }));
+  return clRangeCache.get(slug);
+}
+// A commentary is listed only if it has a note on the searched verses (a chapter introduction counts
+// only when the whole chapter was searched).
+const clHasNote = (units, r) => {
+  const whole = r.v1 === 1 && r.v2 === r.book.chapters[r.c1 - 1];
+  return (units || []).some(u => u[0] === 0 ? whole : (u[0] <= r.v2 && u[1] >= r.v1));
+};
 async function renderCL() {
-  const r = current, idx = await loadClIndex();
+  const r = current;
+  const [idx, ranges] = await Promise.all([loadClIndex(), loadClRanges(r.book.slug)]);
   if (current !== r) return;
-  const have = CLASSICS.filter(([code]) => (idx[code] || []).includes(r.book.slug));
+  const have = CLASSICS.filter(([code]) => (idx[code] || []).includes(r.book.slug)
+    && (!ranges || clHasNote((ranges[code] || {})[r.c1], r)));
   const more = `https://biblehub.com/commentaries/${bhBook(r.book)}/${r.c1}-${r.v1}.htm`;
   $('cl-body').innerHTML = `<div class="cl-list">${have.map(([code, name, by]) => `
     <details class="cl" data-code="${code}">
