@@ -499,15 +499,45 @@ $('c-ew').addEventListener('toggle', () => { if ($('c-ew').open) loadEW(); });
 /* ---------- Bible Hub: one page per verse with many classic commentaries ---------- */
 const bhBook = b => b.name === 'Song of Solomon' ? 'songs' : b.name.toLowerCase().replace(/\s+/g, '_');
 const bhUrl = (b, c, v) => `https://biblehub.com/commentaries/${bhBook(b)}/${c}-${v}.htm`;
+const bhLabel = r => r.book.name === 'Psalms' ? 'Psalm' : r.book.name;
+// Navigation inside the embed (Bible Hub's own arrows/links) can't be read from this page, because the
+// frame is another site. So: every load we start is "expected"; any other load means the reader moved on
+// inside Bible Hub, and the verse buttons are cleared instead of pointing at the wrong verse.
+let bhExpect = 0;
+function bhGo(url) {
+  const f = $('bh-body').querySelector('iframe'); if (!f) return;
+  if (f.hasAttribute('data-src')) { f.dataset.src = url; return; }
+  bhExpect++; f.src = url;
+}
+function bhSelect(v) {
+  const r = current, a = $('bh-body').querySelector('a.link-btn');
+  $('bh-body').querySelectorAll('.bh-verses button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.v === v)));
+  if (v) { a.href = bhUrl(r.book, r.c1, v); a.textContent = `Open ${bhLabel(r)} ${r.c1}:${v} on Bible Hub ↗`; }
+  else { a.textContent = 'Open on Bible Hub ↗'; }
+}
 function renderBH() {
-  const r = current, c = r.c1, label = r.book.name === 'Psalms' ? 'Psalm' : r.book.name;
+  const r = current, c = r.c1;
+  let chips = '';
+  if (r.v2 > r.v1) for (let v = r.v1; v <= r.v2; v++) chips += `<button type="button" data-v="${v}" aria-pressed="${v === r.v1}">${v}</button>`;
   const url = bhUrl(r.book, c, r.v1);
-  $('bh-body').innerHTML = `<iframe class="ew-frame bh-frame" data-src="${url}" title="Bible Hub commentaries on ${esc(label)} ${c}"></iframe>
-    <a class="link-btn" href="${url}" target="_blank" rel="noopener">Open ${esc(label)} ${c}:${r.v1} on Bible Hub ↗</a>`;
+  $('bh-body').innerHTML = `${chips ? `<div class="ew-jumps bh-verses"><span class="small">Jump to</span>${chips}</div>` : ''}
+    <iframe class="ew-frame bh-frame" data-src="${url}" title="Bible Hub commentaries on ${esc(bhLabel(r))} ${c}"></iframe>
+    <a class="link-btn" href="${url}" target="_blank" rel="noopener">Open ${esc(bhLabel(r))} ${c}:${r.v1} on Bible Hub ↗</a>`;
+  bhExpect = 0;
+  $('bh-body').querySelector('iframe').addEventListener('load', () => {
+    if (bhExpect > 0) bhExpect--; else bhSelect(null);
+  });
   if ($('c-bh').open) loadBH();
 }
-function loadBH() { $('bh-body').querySelectorAll('iframe[data-src]').forEach(f => { f.src = f.dataset.src; f.removeAttribute('data-src'); }); }
+function loadBH() {
+  $('bh-body').querySelectorAll('iframe[data-src]').forEach(f => { bhExpect++; f.src = f.dataset.src; f.removeAttribute('data-src'); });
+}
 $('c-bh').addEventListener('toggle', () => { if ($('c-bh').open) loadBH(); });
+$('bh-body').addEventListener('click', e => {
+  const btn = e.target.closest('.bh-verses button'); if (!btn) return;
+  const v = +btn.dataset.v;
+  bhGo(bhUrl(current.book, current.c1, v)); bhSelect(v);
+});
 
 /* ---------- previous / next verse ---------- */
 function stepRef(r, dir) {
