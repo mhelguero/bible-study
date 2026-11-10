@@ -204,8 +204,9 @@ details[open] .chev { transform: rotate(180deg); }
 .ew-chap + .ew-chap { margin-top: 14px; }
 .ew-chap h5 { margin: 0; font-size: 15px; font-weight: 700; }
 .ew-frame {
-  width: 100%; height: 75vh; min-height: 480px; max-height: 1100px;
-  border: 1px solid var(--line); border-radius: 8px; background: #fff; display: block;
+  /* Run the embedded site edge to edge inside the card, with no frame of its own, so it reads as part of the page. */
+  display: block; width: calc(100% + 32px); margin: 0 -16px; height: 82vh; min-height: 480px;
+  border: 0; background: transparent;
 }
 
 @media (min-width: 900px) {
