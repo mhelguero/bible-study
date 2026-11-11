@@ -55,3 +55,9 @@ Keep each row's link as a fallback if the embed comes up blank.
   build/sword_read.py; and from github.com/samueldotj/bible-commentaries en/poole (Poole 1683-85) and
   en/calvin (CCEL, public domain).
 - Matthew Henry's verse markers ("ver. 3, 4", "(ver. 8)") are shown as "(v. 3, 4)" by henryRefs() at display time.
+
+## Layout
+- Phones/tablets (< 1024px): commentary cards under the passage; opening one turns it into a full-screen page
+  (tab at the top, search header hidden), closed with the tab or Back.
+- Desktop (>= 1024px): split view. Passage on the left; the commentaries are tabs in a panel on the right that
+  scrolls on its own. The chosen tab is remembered (localStorage bsc-tab).

@@ -270,6 +270,43 @@ details.cl[open] > summary .chev { transform: rotate(180deg); }
   main { padding-top: 36px; gap: 36px; }
 }
 @media (max-width: 599px) { .bar { position: static; } }
+/* ---------- desktop split view: passage on the left, commentaries in tabs on the right ---------- */
+.tabs, .vnav-desk { display: none; }
+@media (min-width: 1024px) {
+  .bar-inner { max-width: 1600px; }
+  main {
+    max-width: 1600px; display: grid; grid-template-columns: minmax(360px, 2fr) 3fr; grid-template-rows: auto 1fr;
+    column-gap: 32px; row-gap: 16px; align-items: start; padding: 16px 32px 0;
+  }
+  main > .passage { grid-column: 1; grid-row: 1; }
+  main > .site-foot { grid-column: 1; grid-row: 2; align-self: end; }
+  .vnav-desk { display: flex; margin-top: 8px; }
+  main > .comms {
+    grid-column: 2; grid-row: 1 / span 2; position: sticky; top: calc(var(--bar-h, 0px) + 16px);
+    height: calc(100vh - var(--bar-h, 0px) - 32px); height: calc(100dvh - var(--bar-h, 0px) - 32px);
+    display: flex; flex-direction: column; gap: 0; overflow: hidden;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  }
+  .comms > .comms-h, .comms > .vnav { display: none; }
+  .tabs { display: flex; flex: none; border-bottom: 1px solid var(--line); }
+  .tabs button {
+    flex: 1; border: 0; border-bottom: 3px solid transparent; background: none; color: var(--muted); cursor: pointer;
+    font: inherit; font-size: 15px; font-weight: 600; padding: 15px 12px 12px; min-height: 52px;
+  }
+  .tabs button:hover { color: var(--ink); }
+  .tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--stripe); }
+  .comms > details.c { display: none; border: 0; border-radius: 0; background: none; }
+  .comms > details.c[open] { display: block; }
+  .comms > details.c > summary { display: none; }
+  .comms > details.c[open] > .c-body {
+    height: calc(100vh - var(--bar-h, 0px) - 32px - 55px); height: calc(100dvh - var(--bar-h, 0px) - 32px - 55px);
+    overflow-y: auto; overscroll-behavior: contain; border-top: 0; padding: 20px 28px 28px; align-content: start;
+  }
+  .comms > details.c[open] > #ew-body { overflow: hidden; display: flex; flex-direction: column; padding: 0; gap: 0; }
+  .comms > details.c[open] > #ew-body > .ew-chap { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 0; }
+  .comms > details.c[open] > #ew-body .ew-jumps { flex: none; padding: 8px 16px; box-shadow: 0 1px 0 var(--line); }
+  .comms > details.c[open] > #ew-body .ew-frame { flex: 1; min-height: 0; height: auto; }
+}
 @media (prefers-reduced-motion: reduce) { .chev { transition: none; } }
 </style>
 </head>
@@ -305,10 +342,16 @@ details.cl[open] > summary .chev { transform: rotate(180deg); }
   <section class="passage" aria-live="polite">
     <div class="ref"><h2 id="ref"></h2></div>
     <div class="scripture" id="text"><p class="loading">Loading the passage…</p></div>
+    <nav class="vnav vnav-desk" aria-label="Previous and next verse"></nav>
   </section>
 
   <section class="comms" aria-label="Commentaries">
     <p class="comms-h">Commentaries</p>
+    <div class="tabs" role="tablist" aria-label="Commentaries">
+      <button type="button" role="tab" data-for="c-ew" style="--stripe: var(--ew)">Enduring Word</button>
+      <button type="button" role="tab" data-for="c-cl" style="--stripe: var(--bh)">Classic Commentaries</button>
+      <button type="button" role="tab" data-for="c-mh" style="--stripe: var(--mh)">Matthew Henry</button>
+    </div>
     <nav class="vnav" aria-label="Previous and next verse"></nav>
 
     <details class="c" id="c-ew" style="--stripe: var(--ew)">
@@ -334,7 +377,7 @@ details.cl[open] > summary .chev { transform: rotate(180deg); }
       </summary>
       <div class="c-body" id="mh-body"></div>
     </details>
-    <nav class="vnav" aria-label="Previous and next verse"></nav>
+    <nav class="vnav vnav-bottom" aria-label="Previous and next verse"></nav>
   </section>
   <footer class="site-foot"><p class="copy" id="copy"></p></footer>
 </main>
@@ -625,7 +668,39 @@ function setSumH(d) { document.documentElement.style.setProperty('--sum-h', d.qu
 document.querySelectorAll('details.c > summary').forEach(s => s.addEventListener('click', () => {
   if (!s.parentElement.open) pageScrollY = scrollY;
 }));
+// Desktop split view: the commentaries are tabs beside the passage instead of full-screen pages.
+const splitMQ = matchMedia('(min-width: 1024px)');
+const isSplit = () => splitMQ.matches;
+function setBarH() {
+  const bar = document.querySelector('.bar');
+  document.documentElement.style.setProperty('--bar-h', getComputedStyle(bar).position === 'sticky' ? bar.offsetHeight + 'px' : '0px');
+}
+setBarH(); addEventListener('resize', setBarH);
+function syncTabs() {
+  document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-selected', String($(b.dataset.for).open)));
+}
+function openTab(id) {
+  const d = $(id);
+  if (!d.open) d.open = true; else syncTabs();
+  try { localStorage.setItem('bsc-tab', id); } catch (e) {}
+}
+function ensureTab() {
+  if (!isSplit() || $('main').hidden || document.querySelector('.comms > details.c[open]')) { syncTabs(); return; }
+  let id = 'c-ew'; try { const s = localStorage.getItem('bsc-tab'); if (s && $(s)) id = s; } catch (e) {}
+  openTab(id);
+}
+document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => openTab(b.dataset.for)));
+splitMQ.addEventListener('change', () => {
+  setBarH();
+  const pg = document.querySelector('details.c.page'); if (pg) pg.classList.remove('page');
+  document.documentElement.classList.remove('paged');
+  if (isSplit()) ensureTab(); else document.querySelectorAll('details.c[open]').forEach(d => { d.open = false; });
+});
 document.querySelectorAll('details.c').forEach(d => d.addEventListener('toggle', () => {
+  if (isSplit()) {
+    if (d.open) document.querySelectorAll('details.c[open]').forEach(o => { if (o !== d) o.open = false; });
+    syncTabs(); return;
+  }
   if (d.open) {
     document.querySelectorAll('details.c[open]').forEach(o => { if (o !== d) o.open = false; });
     d.classList.add('page'); document.documentElement.classList.add('paged'); setSumH(d);
@@ -661,7 +736,7 @@ function renderNav() {
 document.addEventListener('click', e => {
   const btn = e.target.closest('.vnav button'); if (!btn || !current) return;
   const r = stepRef(current, btn.classList.contains('next') ? 1 : -1); if (!r) return;
-  const bottom = btn.closest('.vnav') === document.querySelectorAll('.vnav')[1];
+  const bottom = btn.closest('.vnav').classList.contains('vnav-bottom');
   show(r);
   if (bottom) window.scrollTo({ top: 0 });
 });
@@ -786,7 +861,7 @@ async function show(r, push = true) {
   document.title = `${refLabel(r)} · Bible Study Commentary`;
   $('q').value = refLabel(r).replace('–', '-');
   if (push) { try { history.replaceState(null, '', '#' + refHash(r)); } catch (e) { location.hash = refHash(r); } }
-  renderText(); renderMH(); renderEW(); renderCL(); renderNav();
+  renderText(); renderMH(); renderEW(); renderCL(); renderNav(); ensureTab();
 }
 
 function setTranslation(t) {
