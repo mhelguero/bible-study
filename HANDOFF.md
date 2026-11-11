@@ -62,4 +62,7 @@ Keep each row's link as a fallback if the embed comes up blank.
 - Desktop (>= 1024px): split view. A passage column against the left edge (search header, passage, verse
   buttons, copyright; width --left-w) and the commentaries as tabs in a panel filling the rest of the window.
   The ‹ button in the tab bar slides the passage column off to the left (html.side-hidden). The chosen tab and
-  the hidden/shown state are remembered (localStorage bsc-tab, bsc-side).
+  the hidden/shown state are remembered (localStorage bsc-tab, bsc-side). The divider between the two can be
+  dragged (width saved as bsc-leftw; double-click resets), and "Full screen" by the passage title hides the panel.
+- Enduring Word embed: its dark mode leaves its page margins white, so fitEW() makes the iframe slightly wider
+  than its area and clips the margins off (8px under 768px, 24px up to 1290px, then centred at 1242px).
