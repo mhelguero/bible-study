@@ -66,3 +66,15 @@ Keep each row's link as a fallback if the embed comes up blank.
   dragged (width saved as bsc-leftw; double-click resets), and "Full screen" by the passage title hides the panel.
 - Enduring Word embed: its dark mode leaves its page margins white, so fitEW() makes the iframe slightly wider
   than its area and clips the margins off (8px under 768px, 24px up to 1290px, then centred at 1242px).
+
+## Study tools
+- The whole chapter is always fetched (one API call per chapter and translation, cached); markVerses() tags each
+  piece of text with its verse. Searched verses are highlighted and scrolled to on desktop; phones show only the
+  searched verses with a "Show all of <chapter>" button.
+- Clicking a verse number: outside the searched verses opens it; inside them, focusCommentaries() scrolls Henry
+  and the open classics to the note on that verse and sends Enduring Word to its section.
+- linkRefs() turns references in Henry and the classics into links ("Rom 8:1", "Mal. ii. 7", "ch. vii. 38",
+  Henry's "(v. 14, 15)"). Hover (desktop) or tap (phones) shows the verse (one API call per reference, cached).
+- Keyboard (desktop): / search, ←/→ verse, 1/2/3 tabs, F full screen, [ hide passage, +/- text size, B bookmark.
+- Bookmarks and recent passages (localStorage bsc-bm, bsc-recent) appear in the search picker when the box is
+  empty. Text size A−/A+ (bsc-ts) scales the passage and the commentaries.

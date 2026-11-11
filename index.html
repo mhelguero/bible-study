@@ -132,7 +132,7 @@ main > * { min-width: 0; }
 .passage { display: grid; gap: 12px; }
 .ref { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .ref h2 { font-family: var(--font-scripture); font-weight: 600; font-size: 30px; line-height: 1.15; margin: 0; text-wrap: balance; }
-.scripture { font-family: var(--font-scripture); font-size: 19px; line-height: 1.7; max-width: 65ch; }
+.scripture { font-family: var(--font-scripture); font-size: calc(19px * var(--ts)); line-height: 1.7; max-width: 65ch; }
 .scripture p { margin: 0 0 .6em; }
 .chap-mark { display: block; font-family: var(--font-ui); font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; margin: 1em 0 .3em; }
 sup.v { font-family: var(--font-ui); font-size: 11px; font-weight: 700; color: var(--muted); margin-right: 3px; vertical-align: super; line-height: 0; font-variant-numeric: tabular-nums; }
@@ -147,6 +147,48 @@ sup.v { font-family: var(--font-ui); font-size: 11px; font-weight: 700; color: v
 .scripture .q1, .scripture .q, .scripture .pi1, .scripture .pi { padding-left: 1.2em; text-indent: -.6em; margin: 0; }
 .scripture .q2, .scripture .pi2 { padding-left: 2.4em; text-indent: -.6em; margin: 0; }
 .scripture .b { height: .6em; }
+/* searched verses highlighted inside the whole chapter */
+.scripture .vt.in { background: color-mix(in srgb, var(--accent) 10%, transparent); -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.scripture .vt.focus { background: color-mix(in srgb, var(--accent) 30%, transparent); }
+.scripture .v[role="button"] { cursor: pointer; border-radius: 4px; padding: 0 2px; }
+.scripture .v[role="button"]:hover, .scripture .v[role="button"]:focus-visible { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); outline: none; }
+.ctx-toggle { display: none; }
+@media (max-width: 1023px) {
+  #text.ctx-hide .pout, #text.ctx-hide .vt.out, #text.ctx-hide .v.vout { display: none; }
+  #text.ctx-hide .vt.in { background: none; } /* only the searched verses are showing */
+  .ctx-toggle:not([hidden]) {
+    display: inline-flex; margin-top: 4px; border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+    border-radius: 8px; padding: 8px 12px; min-height: 40px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+}
+/* the note a clicked verse points to flashes briefly */
+@keyframes flash { from { background: color-mix(in srgb, var(--accent) 28%, transparent); } to { background: transparent; } }
+.flash { animation: flash 1.6s ease-out; border-radius: 6px; }
+/* Bible references inside commentaries */
+a.xref { color: inherit; text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--accent) 55%, transparent); text-underline-offset: 2px; cursor: pointer; }
+a.xref:hover { color: var(--accent); text-decoration-color: currentColor; }
+.refpop {
+  position: fixed; z-index: 60; max-width: min(420px, calc(100vw - 24px)); background: var(--surface); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 32px rgba(0,0,0,.2); padding: 12px 14px; font-size: 15px;
+}
+.refpop h6 { margin: 0 0 6px; font-size: 13px; font-weight: 700; color: var(--muted); }
+.refpop .txt { font-family: var(--font-scripture); line-height: 1.6; max-height: 40vh; overflow: auto; }
+.refpop .txt sup { font-family: var(--font-ui); font-size: 10px; color: var(--muted); margin-right: 2px; }
+.refpop .go { margin-top: 10px; border: 0; background: var(--accent); color: var(--accent-ink); border-radius: 8px; padding: 8px 12px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.kbd-hint { display: none; }
+.ref-tools { display: flex; align-items: center; gap: 6px; margin-left: auto; align-self: center; }
+.tool {
+  display: inline-flex; align-items: center; justify-content: center; gap: 1px; min-width: 34px; height: 32px; padding: 0 8px;
+  border: 1px solid var(--line); background: var(--surface); color: var(--muted); border-radius: 8px; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.tool:hover { color: var(--ink); }
+#bm[aria-pressed="true"] { color: var(--accent); --bmfill: var(--accent); }
+@media (min-width: 1024px) {
+  .kbd-hint { display: block; margin: 14px 0 0; font-size: 12px; color: var(--muted); line-height: 2; }
+  .kbd-hint kbd { font: inherit; font-weight: 700; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; background: var(--surface); color: var(--ink); }
+}
+/* text size (A− / A+), scales the passage and the commentaries */
+:root { --ts: 1; }
 .site-foot { margin-top: auto; border-top: 1px solid var(--line); padding: 16px 0 calc(16px + env(safe-area-inset-bottom)); }
 .copy { font-size: 12px; line-height: 1.5; color: var(--muted); margin: 0; max-width: 65ch; }
 .copy a { color: inherit; }
@@ -210,8 +252,8 @@ details[open] .chev { transform: rotate(180deg); }
   display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: .03em; font-variant-numeric: tabular-nums;
   color: var(--stripe); background: color-mix(in srgb, var(--stripe) 14%, var(--surface)); border-radius: 999px; padding: 3px 10px;
 }
-.note-sec p, .cl-unit p { margin: 0; font-family: var(--font-scripture); font-size: 17px; line-height: 1.7; }
-@media (min-width: 900px) { .note-sec p, .cl-unit p { font-size: 18px; } }
+.note-sec p, .cl-unit p { margin: 0; font-family: var(--font-scripture); font-size: calc(17px * var(--ts)); line-height: 1.7; }
+@media (min-width: 900px) { .note-sec p, .cl-unit p { font-size: calc(18px * var(--ts)); } }
 /* Henry's outline: I. = heading, then 1. / (1.) / [1.] indented a step each, with the number hanging. */
 .note-sec p.mh-h {
   margin: 14px 0 2px; padding: 10px 14px; font-family: var(--font-ui); font-size: 18px; font-weight: 700; line-height: 1.4;
@@ -266,7 +308,7 @@ details.cl[open] > summary .chev { transform: rotate(180deg); }
 
 @media (min-width: 900px) {
   .ref h2 { font-size: 36px; }
-  .scripture { font-size: 20px; }
+  .scripture { font-size: calc(20px * var(--ts)); }
   main { padding-top: 36px; gap: 36px; }
 }
 @media (max-width: 599px) { .bar { position: static; } }
@@ -327,7 +369,7 @@ details.cl[open] > summary .chev { transform: rotate(180deg); }
   html.side-hidden .resizer { display: none; }
   /* full-screen passage */
   .pfull {
-    display: inline-flex; align-items: center; gap: 6px; margin-left: auto; align-self: center; border: 1px solid var(--line);
+    display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); height: 32px; box-sizing: border-box;
     background: var(--surface); color: var(--muted); border-radius: 8px; padding: 6px 10px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
   }
   .pfull:hover { color: var(--ink); }
@@ -335,7 +377,7 @@ details.cl[open] > summary .chev { transform: rotate(180deg); }
   html.passage-full main > .comms, html.passage-full .resizer { display: none; }
   html.passage-full main { border-right: 0; }
   html.passage-full main > .passage, html.passage-full main > .site-foot, html.passage-full .bar-inner { width: 100%; max-width: 900px; margin-left: auto; margin-right: auto; }
-  html.passage-full .scripture { font-size: 22px; max-width: none; }
+  html.passage-full .scripture { font-size: calc(22px * var(--ts)); max-width: none; }
   .comms > details.c { display: none; border: 0; border-radius: 0; background: none; }
   .comms > details.c[open] { display: block; }
   .comms > details.c > summary { display: none; }
@@ -382,12 +424,20 @@ details.cl[open] > summary .chev { transform: rotate(180deg); }
 <main id="main" hidden>
   <section class="passage" aria-live="polite">
     <div class="ref"><h2 id="ref"></h2>
+      <div class="ref-tools">
+      <button type="button" class="tool" id="bm" aria-pressed="false" title="Bookmark this passage (B)">
+        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2h8v12l-4-3-4 3z" fill="var(--bmfill, none)" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+      </button>
+      <button type="button" class="tool" id="ts-dn" title="Smaller text (−)" aria-label="Smaller text"><span style="font-size:12px">A</span>−</button>
+      <button type="button" class="tool" id="ts-up" title="Larger text (+)" aria-label="Larger text"><span style="font-size:15px">A</span>+</button>
       <button type="button" class="pfull" aria-pressed="false" title="Show the passage full screen">
         <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <span class="lbl">Full screen</span>
-      </button></div>
+      </button></div></div>
     <div class="scripture" id="text"><p class="loading">Loading the passage…</p></div>
+    <button type="button" class="ctx-toggle" id="ctx-toggle" hidden></button>
     <nav class="vnav vnav-desk" aria-label="Previous and next verse"></nav>
+    <p class="kbd-hint">Keys: <kbd>/</kbd> search · <kbd>←</kbd> <kbd>→</kbd> verse · <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> commentary · <kbd>F</kbd> full screen · <kbd>[</kbd> hide passage · <kbd>+</kbd> <kbd>−</kbd> text size · <kbd>B</kbd> bookmark</p>
   </section>
 
   <section class="comms" aria-label="Commentaries">
@@ -532,9 +582,10 @@ const API_KEY = (window.BIBLE_API_KEY || '').trim();
 const textCache = new Map();
 function loadPassage(r, tr) {
   const code = USFM[r.book.i];
-  // A whole chapter is fetched by chapter id, so translations with an extra verse (e.g. 3 John 15) are complete.
-  const whole = r.v1 === 1 && r.v2 === r.book.chapters[r.c1 - 1];
-  const pid = whole ? `${code}.${r.c1}` : `${code}.${r.c1}.${r.v1}-${code}.${r.c2}.${r.v2}`;
+  // The whole chapter is always fetched (one request per chapter and translation, reused for any verses in
+  // it); the searched verses are highlighted in it. Chapter ids also keep translations with an extra verse whole.
+  const whole = true;
+  const pid = `${code}.${r.c1}`;
   const key = tr + '|' + pid;
   if (!textCache.has(key)) {
     const url = `https://rest.api.bible/v1/bibles/${TRANSLATIONS[tr].id}/${whole ? 'chapters' : 'passages'}/${pid}?content-type=html&include-notes=false&include-titles=true&include-chapter-numbers=false&include-verse-numbers=true&include-verse-spans=false`;
@@ -583,6 +634,8 @@ async function renderText() {
     if (current !== r || translation !== tr) return;
     $('text').innerHTML = cleanHtml(d.data.content || '') || '<p class="small">This translation has no text for this passage.</p>';
     if (d.meta && d.meta.fumsToken) window.fums('trackView', d.meta.fumsToken);
+    markVerses($('text'), r);
+    scrollToVerses();
   } catch (e) {
     if (current !== r || translation !== tr) return;
     const msg = e.status === 401 ? 'The API.Bible key in config.js was not accepted. Check that it was pasted correctly.'
@@ -592,6 +645,95 @@ async function renderText() {
       : 'The passage could not be loaded. Check your connection and press Show again.';
     $('text').innerHTML = `<p class="error">${msg}</p>`;
   }
+}
+
+/* Every piece of chapter text is tagged with its verse, so the searched verses can be highlighted, the rest
+   of the chapter can be hidden on phones, and a verse number can be clicked. */
+const isWhole = r => r.v1 === 1 && r.v2 === r.book.chapters[r.c1 - 1];
+function markVerses(box, r) {
+  const whole = isWhole(r), inR = v => whole || (v >= r.v1 && v <= r.v2);
+  const HEAD = /^(s|s1|s2|s3|ms|ms1|ms2|mr|d|r|sp|qa|cl|mt|mt1|mt2)$/;
+  let cur = 0, heads = [];
+  for (const p of [...box.children]) {
+    if (HEAD.test((p.className || '').split(/\s+/)[0])) { heads.push(p); continue; }
+    const texts = []; let first = null;
+    const w = document.createTreeWalker(p, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
+    for (let n = w.nextNode(); n; n = w.nextNode()) {
+      if (n.nodeType === 1) {
+        if (n.classList.contains('v')) {
+          cur = +n.dataset.number || cur; n.dataset.v = cur; if (first === null) first = cur;
+          n.classList.add(inR(cur) ? 'vin' : 'vout'); n.setAttribute('role', 'button'); n.tabIndex = 0;
+          n.title = `Verse ${cur}`;
+        }
+        continue;
+      }
+      if (n.nodeValue.trim() && !n.parentElement.classList.contains('v')) texts.push([n, cur]);
+    }
+    if (first === null) first = cur;
+    let any = false;
+    for (const [n, v] of texts) {
+      const s = document.createElement('span');
+      s.className = 'vt ' + (whole ? '' : inR(v) ? 'in' : 'out'); s.dataset.v = v;
+      n.replaceWith(s); s.appendChild(n); if (inR(v)) any = true;
+    }
+    p.classList.add(any ? 'pin' : 'pout');
+    heads.forEach(h => h.classList.add(inR(first) ? 'pin' : 'pout')); heads = [];
+  }
+  heads.forEach(h => h.classList.add('pout'));
+  // phones show only the searched verses unless "Show the whole chapter" is on
+  box.classList.toggle('ctx-hide', !whole && !showCtx);
+  const t = $('ctx-toggle');
+  t.hidden = whole;
+  const ch = `${r.book.name === 'Psalms' ? 'Psalm' : r.book.name} ${r.c1}`;
+  t.textContent = showCtx ? `Show only ${refLabel(r)}` : `Show all of ${ch}`;
+}
+let showCtx = false;
+$('ctx-toggle').addEventListener('click', () => {
+  showCtx = !showCtx; markVersesToggle(); if (showCtx) scrollToVerses();
+});
+function markVersesToggle() {
+  const r = current; $('text').classList.toggle('ctx-hide', !isWhole(r) && !showCtx);
+  $('ctx-toggle').textContent = showCtx ? `Show only ${refLabel(r)}` : `Show all of ${r.book.name === 'Psalms' ? 'Psalm' : r.book.name} ${r.c1}`;
+}
+// Clicking a verse number: outside the searched verses it opens that verse; inside them it points the
+// commentaries at it (Henry's and the classics' notes scroll to it, Enduring Word goes to its section).
+function onVerse(v) {
+  const r = current; if (!r) return;
+  if (v < r.v1 || v > r.v2) { location.hash = refHash({ book: r.book, c1: r.c1, v1: v, c2: r.c1, v2: v }); return; }
+  $('text').querySelectorAll('.vt.focus').forEach(e => e.classList.remove('focus'));
+  $('text').querySelectorAll(`.vt[data-v="${v}"]`).forEach(e => e.classList.add('focus'));
+  focusCommentaries(v);
+}
+$('text').addEventListener('click', e => { const n = e.target.closest('.v[data-v]'); if (n) onVerse(+n.dataset.v); });
+$('text').addEventListener('keydown', e => { const n = e.target.closest('.v[data-v]'); if (n && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onVerse(+n.dataset.v); } });
+function scrollPanel(target) {
+  const body = target.closest('.c-body'); if (!body) return;
+  body.scrollTop += target.getBoundingClientRect().top - body.getBoundingClientRect().top - 12;
+  target.classList.remove('flash'); void target.offsetWidth; target.classList.add('flash');
+}
+const covers = (el, v) => +el.dataset.a <= v && v <= +el.dataset.b;
+async function focusCommentaries(v) {
+  // Matthew Henry: the first paragraph on that verse, else its section
+  const mh = [...$('mh-body').querySelectorAll('[data-a]')];
+  const mhT = mh.find(e => !e.classList.contains('note-sec') && +e.dataset.a === v) || mh.find(e => !e.classList.contains('note-sec') && covers(e, v)) || mh.find(e => covers(e, v));
+  if (mhT && $('c-mh').open) scrollPanel(mhT);
+  // classics: the first note on that verse in an open commentary
+  const cl = [...$('cl-body').querySelectorAll('details.cl[open] .cl-unit[data-a]')].find(e => +e.dataset.a > 0 && covers(e, v));
+  if (cl && $('c-cl').open) scrollPanel(cl);
+  // Enduring Word: the section covering the verse
+  const secs = await loadEWSections(), r = current;
+  const s = (secs[`${r.book.slug}-${r.c1}`] || []).find(x => x[1] <= v && v <= x[2]);
+  const f = $('ew-body').querySelector('iframe');
+  if (s && f) { const url = `${ewSlug(r.book, r.c1)}#section-${s[0]}`; if (f.hasAttribute('data-src')) f.dataset.src = url; else f.src = url; const a = $('ew-body').querySelector('a.ew-open'); if (a) a.href = url; }
+}
+// Bring the first searched verse to the top of the passage area (desktop, or a phone showing the whole chapter).
+function scrollToVerses() {
+  const r = current; if (!r || isWhole(r)) { return; }
+  const el = $('text').querySelector('.v.vin, .vt.in'); if (!el) return;
+  if (!isSplit() && !showCtx) return;
+  const barH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--bar-h')) || 0;
+  const y = el.getBoundingClientRect().top + scrollY - barH - 16;
+  scrollTo({ top: Math.max(0, y) });
 }
 
 function ewSlug(book, c) {
@@ -707,8 +849,9 @@ async function fillCl(d) {
   box.innerHTML = units.length ? units.map(([a, b, items]) => {
     const label = a === 0 ? `${esc(r.book.name === 'Psalms' ? 'Psalm' : r.book.name)} ${c} introduction` : (a === b ? `Verse ${a}` : `Verses ${a}–${b >= 999 ? 'end' : b}`);
     const body = items.filter(([, h]) => !/^\s*(?:<b>)?\s*Verses?\s+[\d\s,–-]+\.?\s*(?:<\/b>)?\s*$/i.test(h)); // repeats the pill
-    return `<div class="cl-unit"><p class="note-head"><span class="vpill">${label}</span></p>` + body.map(([k, h]) => k === 'h' ? `<h5>${h}</h5>` : `<p>${h}</p>`).join('') + '</div>';
+    return `<div class="cl-unit" data-a="${a}" data-b="${b}"><p class="note-head"><span class="vpill">${label}</span></p>` + body.map(([k, h]) => k === 'h' ? `<h5>${h}</h5>` : `<p>${h}</p>`).join('') + '</div>';
   }).join('') : '<p class="small">No note on these verses.</p>';
+  linkRefs(box, r);
 }
 $('cl-body').addEventListener('toggle', e => { if (e.target.matches('details.cl') && e.target.open) fillCl(e.target); }, true);
 
@@ -818,6 +961,62 @@ addEventListener('popstate', () => {
 });
 addEventListener('resize', () => { const d = document.querySelector('details.c.page[open]'); if (d) setSumH(d); });
 
+/* ---------- text size ---------- */
+let tsize = 1;
+function setTs(v) {
+  tsize = Math.round(Math.max(0.8, Math.min(1.6, v)) * 10) / 10;
+  document.documentElement.style.setProperty('--ts', tsize);
+  try { localStorage.setItem('bsc-ts', tsize); } catch (e) {}
+}
+try { const v = +localStorage.getItem('bsc-ts'); if (v) setTs(v); } catch (e) {}
+$('ts-up').addEventListener('click', () => setTs(tsize + 0.1));
+$('ts-dn').addEventListener('click', () => setTs(tsize - 0.1));
+
+/* ---------- bookmarks and recent passages (kept in this browser) ---------- */
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k) || '[]'); } catch (e) { return []; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+};
+const savedList = k => store.get(k).map(h => hashToRef(h)).filter(Boolean);
+function addRecent(r) {
+  const h = refHash(r); store.set('bsc-recent', [h, ...store.get('bsc-recent').filter(x => x !== h)].slice(0, 8));
+}
+function syncBm() {
+  const on = !!current && store.get('bsc-bm').includes(refHash(current));
+  $('bm').setAttribute('aria-pressed', String(on));
+  $('bm').title = on ? 'Remove bookmark (B)' : 'Bookmark this passage (B)';
+}
+function toggleBm() {
+  if (!current) return; const h = refHash(current), list = store.get('bsc-bm');
+  store.set('bsc-bm', list.includes(h) ? list.filter(x => x !== h) : [h, ...list].slice(0, 50)); syncBm();
+}
+$('bm').addEventListener('click', toggleBm);
+
+/* ---------- keyboard shortcuts ---------- */
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const tag = (e.target.tagName || '').toLowerCase();
+  if (tag === 'input' || tag === 'select' || tag === 'textarea' || e.target.isContentEditable) {
+    if (e.key === 'Escape') e.target.blur();
+    return;
+  }
+  const k = e.key;
+  if (k === '/') { e.preventDefault(); qIn.focus(); qIn.select(); return; }
+  if (k === 'Escape') { closePop(); const pg = document.querySelector('details.c.page[open]'); if (pg) pg.open = false; return; }
+  if (!current) return;
+  if (k === 'ArrowLeft' || k === 'ArrowRight') {
+    if (e.target.closest && e.target.closest('.resizer')) return;
+    const r = stepRef(current, k === 'ArrowRight' ? 1 : -1); if (r) { e.preventDefault(); show(r); } return;
+  }
+  if (k === '+' || k === '=') { setTs(tsize + 0.1); return; }
+  if (k === '-' || k === '_') { setTs(tsize - 0.1); return; }
+  if (k === 'b' || k === 'B') { toggleBm(); return; }
+  if (!isSplit()) return;
+  if (k === '1' || k === '2' || k === '3') { setFull(false); setSide(false); openTab(['c-ew', 'c-cl', 'c-mh'][+k - 1]); return; }
+  if (k === 'f' || k === 'F') { setSide(false); setFull(!rootEl.classList.contains('passage-full')); return; }
+  if (k === '[') { setFull(false); setSide(!rootEl.classList.contains('side-hidden')); return; }
+});
+
 /* ---------- previous / next verse ---------- */
 function stepRef(r, dir) {
   let b = r.book, c = r.c1, v = dir > 0 ? r.v2 + 1 : r.v1 - 1;
@@ -839,6 +1038,93 @@ document.addEventListener('click', e => {
   show(r);
   if (bottom) window.scrollTo({ top: 0 });
 });
+
+/* ---------- Bible references inside the commentaries ----------
+   "Rom 8:1", "Jn 6:33", "1 Tim. i. 15", "Mal. ii. 7" (Henry's Roman-numeral chapters), "ch. vii. 38" (same book)
+   and Henry's "(v. 16)" (same chapter) become links: hover (or tap) shows the verse, click opens it. */
+function romanNum(s) {
+  const m = { i: 1, v: 5, x: 10, l: 50, c: 100 }; let t = 0; s = s.toLowerCase();
+  for (let i = 0; i < s.length; i++) { const a = m[s[i]], b = m[s[i + 1]] || 0; t += a < b ? -a : a; }
+  return t;
+}
+const chapNum = s => /^\d+$/.test(s) ? +s : romanNum(s);
+function refFor(book, c, v1, v2) {
+  if (!book || !(c >= 1 && c <= book.chapters.length)) return null;
+  const n = book.chapters[c - 1]; if (!(v1 >= 1 && v1 <= n)) return null;
+  v2 = Math.min(Math.max(v2 || v1, v1), n);
+  return { book, c1: c, v1, c2: c, v2 };
+}
+const REF_RE = /\b(?:([123]|I{1,3})\s?)?([A-Z][a-z]{1,13})\.?\s+([ivxlc]{1,7}|\d{1,3})[.:]\s?(\d{1,3})(?:\s?[-–]\s?(\d{1,3}))?|\bch\.\s+([ivxlc]{1,7}|\d{1,3})\.\s?(\d{1,3})(?:\s?[-–]\s?(\d{1,3}))?|\(v\.\s(\d{1,3}(?:\s?[-–,]\s?\d{1,3})*)\)/g;
+function linkRefs(root, ctx) {
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const nodes = []; for (let n = w.nextNode(); n; n = w.nextNode()) if (!n.parentElement.closest('a, h4, .vpill')) nodes.push(n);
+  for (const n of nodes) {
+    const s = n.nodeValue; let last = 0, frag = null; REF_RE.lastIndex = 0; let m;
+    while ((m = REF_RE.exec(s))) {
+      let r = null, text = m[0], lead = '';
+      if (m[2]) {
+        const pre = m[1] ? ({ I: '1', II: '2', III: '3' }[m[1]] || m[1]) + ' ' : '';
+        const b = findBook(pre + m[2]);
+        if (b && !/^(Verse|Verses|Ver|Note|Chapter|Psalm\s)$/.test(m[2])) r = refFor(b, chapNum(m[3]), +m[4], m[5] && +m[5]);
+      } else if (m[6]) r = refFor(ctx.book, chapNum(m[6]), +m[7], m[8] && +m[8]);
+      else if (m[9]) { const ns = m[9].match(/\d+/g).map(Number); r = refFor(ctx.book, ctx.c1, Math.min(...ns), Math.max(...ns)); lead = '('; text = text.slice(1, -1); }
+      if (!r) continue;
+      frag = frag || document.createDocumentFragment();
+      frag.append(s.slice(last, m.index) + lead);
+      const a = document.createElement('a'); a.className = 'xref'; a.href = '#' + refHash(r); a.textContent = text; a.dataset.ref = refHash(r);
+      frag.append(a); if (lead) frag.append(')');
+      last = m.index + m[0].length;
+    }
+    if (frag) { frag.append(s.slice(last)); n.replaceWith(frag); }
+  }
+}
+// preview of a referenced passage (fetched once per reference, in the current translation)
+const prevCache = new Map();
+function loadPreview(r, tr) {
+  const code = USFM[r.book.i], pid = `${code}.${r.c1}.${r.v1}-${code}.${r.c2}.${r.v2}`, key = tr + '|' + pid;
+  if (!prevCache.has(key)) prevCache.set(key, fetch(`https://rest.api.bible/v1/bibles/${TRANSLATIONS[tr].id}/passages/${pid}?content-type=text&include-notes=false&include-titles=false&include-verse-numbers=true`,
+    { headers: { 'api-key': API_KEY } }).then(res => { if (!res.ok) throw new Error(res.status); return res.json(); })
+    .then(d => { if (d.meta && d.meta.fumsToken) window.fums('trackView', d.meta.fumsToken); return d.data.content || ''; })
+    .catch(e => { prevCache.delete(key); throw e; }));
+  return prevCache.get(key);
+}
+let pop = null, popTimer = 0;
+function closePop() { if (pop) { pop.remove(); pop = null; } clearTimeout(popTimer); }
+async function openPop(a, withButton) {
+  closePop();
+  const r = hashToRef(a.dataset.ref); if (!r) return;
+  pop = document.createElement('div'); pop.className = 'refpop'; pop.setAttribute('role', 'dialog');
+  pop.innerHTML = `<h6>${esc(refLabel(r))}</h6><div class="txt">Loading…</div>${withButton ? `<button type="button" class="go">Open ${esc(refLabel(r))}</button>` : ''}`;
+  document.body.appendChild(pop);
+  const place = () => {
+    if (!pop) return; const ar = a.getBoundingClientRect(), pr = pop.getBoundingClientRect();
+    let x = Math.min(Math.max(12, ar.left), innerWidth - pr.width - 12), y = ar.bottom + 8;
+    if (y + pr.height > innerHeight - 12) y = Math.max(12, ar.top - pr.height - 8);
+    pop.style.left = x + 'px'; pop.style.top = y + 'px';
+  };
+  place();
+  const me = pop;
+  if (withButton) me.querySelector('.go').addEventListener('click', () => { closePop(); location.hash = a.dataset.ref; });
+  try {
+    const txt = await loadPreview(r, translation); if (pop !== me) return;
+    me.querySelector('.txt').innerHTML = esc(txt.trim()).replace(/\[(\d+)\]\s*/g, '<sup>$1</sup>');
+  } catch (e) { if (pop === me) me.querySelector('.txt').textContent = 'The verse could not be loaded.'; }
+  place();
+}
+const canHover = matchMedia('(hover: hover) and (pointer: fine)');
+document.addEventListener('mouseover', e => {
+  if (!canHover.matches) return; const a = e.target.closest('a.xref'); if (!a) return;
+  clearTimeout(popTimer); popTimer = setTimeout(() => openPop(a, false), 350);
+});
+document.addEventListener('mouseout', e => { if (canHover.matches && e.target.closest('a.xref')) { clearTimeout(popTimer); setTimeout(() => { if (pop && !pop.matches(':hover')) closePop(); }, 200); } });
+document.addEventListener('click', e => {
+  const a = e.target.closest('a.xref');
+  if (!a) { if (pop && !e.target.closest('.refpop')) closePop(); return; }
+  e.preventDefault();
+  if (canHover.matches) { closePop(); location.hash = a.dataset.ref; }  // desktop: click opens the verse
+  else openPop(a, true);                                              // touch: show the verse with an Open button
+});
+addEventListener('scroll', closePop, true);
 
 const mhCache = new Map();
 function loadMH(book) {
@@ -878,6 +1164,7 @@ function henryHtml(paras) {
   let lv = 0, out = '', lead = '';
   for (const p of paras) {
     if (p[3]) { out += `<h5>${esc(p[2])}</h5>`; lv = 0; continue; }
+    const va = ` data-a="${p[0]}" data-b="${p[1]}"`;
     for (let chunk of henrySplit(henryRefs(esc(p[2])))) {
       // a short lead-in on its own ("Nay," before "2. They gave…") is carried into the next point
       if (/^[^.]{1,14},$/.test(chunk.trim())) { lead += chunk.trim() + ' '; continue; }
@@ -890,17 +1177,17 @@ function henryHtml(paras) {
       const roman = chunk.match(/^([IVX]{1,5}\.)\s+((?:[^.?!(]|\([^)]*\)){2,160}?[.?!:])(\s|$)/);
       if (roman) {
         lv = 0;
-        out += `<p class="mh-h"><span class="rn">${roman[1]}</span>${roman[2]}</p>`;
+        out += `<p class="mh-h"${va}><span class="rn">${roman[1]}</span>${roman[2]}</p>`;
         const rest = chunk.slice(roman[0].length).trim();
-        if (rest) out += `<p>${rest}</p>`;
+        if (rest) out += `<p${va}>${rest}</p>`;
         continue;
       }
       const num = chunk.match(/^(\(\d{1,2}\.\)|\[\d{1,2}\.\]|\d{1,2}\.)\s+/);
       if (num) {
         lv = henryLevel(num[1]);
-        out += `<p class="lv" style="--lv:${lv}"><span class="pt${num[1].length > 3 ? ' wide' : ''}">${num[1]}</span>${chunk.slice(num[0].length)}</p>`;
+        out += `<p class="lv" style="--lv:${lv}"${va}><span class="pt${num[1].length > 3 ? ' wide' : ''}">${num[1]}</span>${chunk.slice(num[0].length)}</p>`;
       } else if (chunk.trim()) {
-        out += lv ? `<p class="lv" style="--lv:${lv}">${chunk}</p>` : `<p>${chunk}</p>`;
+        out += lv ? `<p class="lv" style="--lv:${lv}"${va}>${chunk}</p>` : `<p${va}>${chunk}</p>`;
       }
     }
   }
@@ -931,7 +1218,7 @@ async function renderMH() {
       const span = u.s === u.e ? `${c}:${u.s}` : `${c}:${u.s}–${u.e}`;
       const trimmed = keep.length < u.p.length;
       found++;
-      html += `<div class="note-sec">
+      html += `<div class="note-sec" data-a="${u.s}" data-b="${u.e}">
         <p class="note-head"><span class="vpill">${esc(nm)} ${span}</span>${u.t ? `<span class="ttl">${esc(u.t)}</span>` : ''}</p>
         <div class="mh-part">${henryHtml(keep.length ? keep : u.p)}</div>
         ${trimmed && keep.length ? `<div class="mh-full" hidden>${henryHtml(u.p)}</div>
@@ -941,6 +1228,7 @@ async function renderMH() {
   }
   if (!found) html += '<p class="small">Matthew Henry has no note for this passage.</p>';
   $('mh-body').innerHTML = html;
+  linkRefs($('mh-body'), r);
 }
 document.addEventListener('click', e => {
   const btn = e.target.closest('button.more');
@@ -960,6 +1248,7 @@ async function show(r, push = true) {
   document.title = `${refLabel(r)} · Bible Study Commentary`;
   $('q').value = refLabel(r).replace('–', '-');
   if (push) { try { history.replaceState(null, '', '#' + refHash(r)); } catch (e) { location.hash = refHash(r); } }
+  showCtx = false; addRecent(r); syncBm();
   renderText(); renderMH(); renderEW(); renderCL(); renderNav(); ensureTab();
 }
 
@@ -990,6 +1279,8 @@ function suggestionsFor(raw) {
   const v = raw.replace(/[–—]/g, '-').replace(/^\s+/, '');
   // Empty box: every book, Old and New Testament.
   if (!v) return { sections: [
+    { head: 'Bookmarks', grid: 'list', items: savedList('bsc-bm').map(r => ({ label: refLabel(r), value: refLabel(r).replace('–', '-'), submit: true })) },
+    { head: 'Recent', grid: 'list', items: savedList('bsc-recent').filter(r => !current || refHash(r) !== refHash(current)).slice(0, 5).map(r => ({ label: refLabel(r), value: refLabel(r).replace('–', '-'), submit: true })) },
     { head: 'Old Testament', grid: 'books', items: INDEX.slice(0, 39).map(bookItem) },
     { head: 'New Testament', grid: 'books', items: INDEX.slice(39).map(bookItem) },
   ] };
@@ -1074,7 +1365,12 @@ $('search-form').addEventListener('submit', e => {
   show(r);
 });
 $('tr-select').addEventListener('change', e => setTranslation(e.target.value));
-window.addEventListener('hashchange', () => { const r = hashToRef(location.hash.slice(1)); if (r) show(r, false); });
+window.addEventListener('hashchange', () => {
+  const r = hashToRef(location.hash.slice(1)); if (!r) return;
+  const pg = document.querySelector('details.c.page[open]');
+  if (pg) { pg.classList.remove('page'); document.documentElement.classList.remove('paged'); pg.open = false; }
+  closePop(); show(r, false);
+});
 
 setTranslation(translation);
 { const r0 = hashToRef(location.hash.slice(1)); if (r0) show(r0, false); }
