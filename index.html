@@ -174,6 +174,7 @@ details.c > summary::-webkit-details-marker { display: none; }
 /* An open commentary becomes its own full-screen page: tab at the top, its content below. The page behind
    doesn't scroll. Tapping the tab (or the phone's Back) returns to the passage where it was. */
 html.paged, html.paged body { overflow: hidden; }
+html.paged .bar { display: none; } /* the search header is hidden while a commentary page is open */
 details.c.page[open] {
   position: fixed; inset: 0; z-index: 50; margin: 0; border: 0; border-left: 4px solid var(--stripe); border-radius: 0;
   background: var(--surface); overflow: hidden;
