@@ -59,5 +59,7 @@ Keep each row's link as a fallback if the embed comes up blank.
 ## Layout
 - Phones/tablets (< 1024px): commentary cards under the passage; opening one turns it into a full-screen page
   (tab at the top, search header hidden), closed with the tab or Back.
-- Desktop (>= 1024px): split view. Passage on the left; the commentaries are tabs in a panel on the right that
-  scrolls on its own. The chosen tab is remembered (localStorage bsc-tab).
+- Desktop (>= 1024px): split view. A passage column against the left edge (search header, passage, verse
+  buttons, copyright; width --left-w) and the commentaries as tabs in a panel filling the rest of the window.
+  The ‹ button in the tab bar slides the passage column off to the left (html.side-hidden). The chosen tab and
+  the hidden/shown state are remembered (localStorage bsc-tab, bsc-side).

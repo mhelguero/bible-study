@@ -270,37 +270,56 @@ details.cl[open] > summary .chev { transform: rotate(180deg); }
   main { padding-top: 36px; gap: 36px; }
 }
 @media (max-width: 599px) { .bar { position: static; } }
-/* ---------- desktop split view: passage on the left, commentaries in tabs on the right ---------- */
-.tabs, .vnav-desk { display: none; }
+/* ---------- desktop split view ----------
+   The passage column (search header, passage, verse buttons, copyright) sits against the left edge; the
+   commentary panel fills the rest of the window and scrolls on its own. The passage column can slide away
+   to the left (html.side-hidden), giving the panel the whole width. */
+.tabs, .vnav-desk, .side-toggle { display: none; }
 @media (min-width: 1024px) {
-  .bar-inner { max-width: 1600px; }
-  main {
-    max-width: 1600px; display: grid; grid-template-columns: minmax(360px, 2fr) 3fr; grid-template-rows: auto 1fr;
-    column-gap: 32px; row-gap: 16px; align-items: start; padding: 16px 32px 0;
+  :root { --left-w: clamp(360px, 32vw, 520px); }
+  .bar {
+    position: fixed; top: 0; left: 0; width: var(--left-w); z-index: 6; box-sizing: border-box;
+    border-right: 1px solid var(--line); transition: transform .3s ease;
   }
-  main > .passage { grid-column: 1; grid-row: 1; }
-  main > .site-foot { grid-column: 1; grid-row: 2; align-self: end; }
+  .bar-inner { max-width: none; padding: 0 8px; }
+  .welcome { width: var(--left-w); box-sizing: border-box; margin: 0; padding-top: calc(var(--bar-h, 0px) + 40px); }
+  main {
+    width: var(--left-w); max-width: none; margin: 0; box-sizing: border-box; border-right: 1px solid var(--line);
+    padding: calc(var(--bar-h, 0px) + 20px) 24px 0; min-height: 100vh; min-height: 100dvh;
+  }
+  main > .passage, main > .site-foot { transition: transform .3s ease; }
   .vnav-desk { display: flex; margin-top: 8px; }
   main > .comms {
-    grid-column: 2; grid-row: 1 / span 2; position: sticky; top: calc(var(--bar-h, 0px) + 16px);
-    height: calc(100vh - var(--bar-h, 0px) - 32px); height: calc(100dvh - var(--bar-h, 0px) - 32px);
-    display: flex; flex-direction: column; gap: 0; overflow: hidden;
-    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    position: fixed; top: 0; bottom: 0; right: 0; left: var(--left-w); z-index: 5;
+    display: flex; flex-direction: column; gap: 0; overflow: hidden; background: var(--surface);
+    transition: left .3s ease;
   }
   .comms > .comms-h, .comms > .vnav { display: none; }
-  .tabs { display: flex; flex: none; border-bottom: 1px solid var(--line); }
-  .tabs button {
+  .tabs { display: flex; flex: none; align-items: stretch; border-bottom: 1px solid var(--line); padding-top: env(safe-area-inset-top); }
+  .tabs button[data-for] {
     flex: 1; border: 0; border-bottom: 3px solid transparent; background: none; color: var(--muted); cursor: pointer;
     font: inherit; font-size: 15px; font-weight: 600; padding: 15px 12px 12px; min-height: 52px;
   }
-  .tabs button:hover { color: var(--ink); }
+  .tabs button[data-for]:hover { color: var(--ink); }
   .tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--stripe); }
+  .side-toggle {
+    display: flex; align-items: center; gap: 6px; flex: none; border: 0; border-right: 1px solid var(--line); background: none;
+    color: var(--muted); cursor: pointer; font: inherit; font-size: 13px; font-weight: 600; padding: 0 14px;
+  }
+  .side-toggle:hover { color: var(--ink); background: var(--chip); }
+  .side-toggle svg { transition: transform .3s ease; }
+  .side-toggle .lbl { display: none; }
+  html.side-hidden .side-toggle .lbl { display: inline; }
+  html.side-hidden .side-toggle svg { transform: rotate(180deg); }
+  html.side-hidden .bar, html.side-hidden main > .passage, html.side-hidden main > .site-foot { transform: translateX(calc(-1 * var(--left-w) - 2px)); }
+  html.side-hidden main > .comms { left: 0; }
+  html.side-hidden body { overflow: hidden; }
   .comms > details.c { display: none; border: 0; border-radius: 0; background: none; }
   .comms > details.c[open] { display: block; }
   .comms > details.c > summary { display: none; }
   .comms > details.c[open] > .c-body {
-    height: calc(100vh - var(--bar-h, 0px) - 32px - 55px); height: calc(100dvh - var(--bar-h, 0px) - 32px - 55px);
-    overflow-y: auto; overscroll-behavior: contain; border-top: 0; padding: 20px 28px 28px; align-content: start;
+    height: calc(100vh - 55px); height: calc(100dvh - 55px);
+    overflow-y: auto; overscroll-behavior: contain; border-top: 0; padding: 24px 40px 32px; align-content: start;
   }
   .comms > details.c[open] > #ew-body { overflow: hidden; display: flex; flex-direction: column; padding: 0; gap: 0; }
   .comms > details.c[open] > #ew-body > .ew-chap { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 0; }
@@ -348,6 +367,10 @@ details.cl[open] > summary .chev { transform: rotate(180deg); }
   <section class="comms" aria-label="Commentaries">
     <p class="comms-h">Commentaries</p>
     <div class="tabs" role="tablist" aria-label="Commentaries">
+      <button type="button" class="side-toggle" aria-label="Hide the passage" aria-expanded="true">
+        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3L5 8l5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="lbl">Passage</span>
+      </button>
       <button type="button" role="tab" data-for="c-ew" style="--stripe: var(--ew)">Enduring Word</button>
       <button type="button" role="tab" data-for="c-cl" style="--stripe: var(--bh)">Classic Commentaries</button>
       <button type="button" role="tab" data-for="c-mh" style="--stripe: var(--mh)">Matthew Henry</button>
@@ -673,11 +696,13 @@ const splitMQ = matchMedia('(min-width: 1024px)');
 const isSplit = () => splitMQ.matches;
 function setBarH() {
   const bar = document.querySelector('.bar');
-  document.documentElement.style.setProperty('--bar-h', getComputedStyle(bar).position === 'sticky' ? bar.offsetHeight + 'px' : '0px');
+  const pos = getComputedStyle(bar).position;
+  document.documentElement.style.setProperty('--bar-h', pos === 'sticky' || pos === 'fixed' ? bar.offsetHeight + 'px' : '0px');
 }
 setBarH(); addEventListener('resize', setBarH);
+if (window.ResizeObserver) new ResizeObserver(setBarH).observe(document.querySelector('.bar'));
 function syncTabs() {
-  document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-selected', String($(b.dataset.for).open)));
+  document.querySelectorAll('.tabs button[data-for]').forEach(b => b.setAttribute('aria-selected', String($(b.dataset.for).open)));
 }
 function openTab(id) {
   const d = $(id);
@@ -689,7 +714,17 @@ function ensureTab() {
   let id = 'c-ew'; try { const s = localStorage.getItem('bsc-tab'); if (s && $(s)) id = s; } catch (e) {}
   openTab(id);
 }
-document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => openTab(b.dataset.for)));
+document.querySelectorAll('.tabs button[data-for]').forEach(b => b.addEventListener('click', () => openTab(b.dataset.for)));
+// Slide the passage column away to the left (and back); remembered between visits.
+function setSide(hidden) {
+  document.documentElement.classList.toggle('side-hidden', hidden);
+  const t = document.querySelector('.side-toggle');
+  t.setAttribute('aria-expanded', String(!hidden));
+  t.setAttribute('aria-label', hidden ? 'Show the passage' : 'Hide the passage');
+  try { localStorage.setItem('bsc-side', hidden ? '1' : '0'); } catch (e) {}
+}
+document.querySelector('.side-toggle').addEventListener('click', () => setSide(!document.documentElement.classList.contains('side-hidden')));
+try { if (localStorage.getItem('bsc-side') === '1') setSide(true); } catch (e) {}
 splitMQ.addEventListener('change', () => {
   setBarH();
   const pg = document.querySelector('details.c.page'); if (pg) pg.classList.remove('page');
