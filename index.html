@@ -1019,21 +1019,12 @@ document.addEventListener('keydown', e => {
 });
 
 /* ---------- previous / next verse ---------- */
-// Next: after a range that reaches the chapter's last verse (not a single verse), the whole next chapter.
-// Previous: from a whole chapter, or a range starting at verse 1, the whole previous chapter.
-// Otherwise one verse at a time.
+// Previous / next always open the whole previous / next chapter (crossing into the neighbouring book).
 function stepRef(r, dir) {
-  const last = r.book.chapters[r.c1 - 1];
-  if ((dir > 0 && r.v2 === last && r.v1 !== r.v2) || (dir < 0 && r.v1 === 1)) {
-    let b = r.book, c = r.c1 + dir;
-    if (c > b.chapters.length) { b = INDEX[b.i + 1]; if (!b) return null; c = 1; }
-    if (c < 1) { b = INDEX[b.i - 1]; if (!b) return null; c = b.chapters.length; }
-    return { book: b, c1: c, v1: 1, c2: c, v2: b.chapters[c - 1] };
-  }
-  let b = r.book, c = r.c1, v = dir > 0 ? r.v2 + 1 : r.v1 - 1;
-  if (v > b.chapters[c - 1]) { c++; v = 1; if (c > b.chapters.length) { b = INDEX[b.i + 1]; if (!b) return null; c = 1; } }
-  if (v < 1) { c--; if (c < 1) { b = INDEX[b.i - 1]; if (!b) return null; c = b.chapters.length; } v = b.chapters[c - 1]; }
-  return { book: b, c1: c, v1: v, c2: c, v2: v };
+  let b = r.book, c = r.c1 + dir;
+  if (c > b.chapters.length) { b = INDEX[b.i + 1]; if (!b) return null; c = 1; }
+  if (c < 1) { b = INDEX[b.i - 1]; if (!b) return null; c = b.chapters.length; }
+  return { book: b, c1: c, v1: 1, c2: c, v2: b.chapters[c - 1] };
 }
 function renderNav() {
   const prev = stepRef(current, -1), next = stepRef(current, 1);
