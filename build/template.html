@@ -390,6 +390,9 @@ details.cl[open] > summary .chev { transform: rotate(180deg); }
   html.passage-full main { border-right: 0; }
   html.passage-full main > .passage, html.passage-full main > .site-foot, html.passage-full .bar-inner { width: 100%; max-width: 900px; margin-left: auto; margin-right: auto; }
   html.passage-full .scripture { font-size: calc(22px * var(--ts)); max-width: none; }
+  html.passage-full .brand { justify-content: flex-start; }
+  html.passage-full .brand .tr-pick { margin-left: auto; }
+  html.passage-full .brand .ref-tools { margin-left: 0; }
   .comms > details.c { display: none; border: 0; border-radius: 0; background: none; }
   .comms > details.c[open] { display: block; }
   .comms > details.c > summary { display: none; }
@@ -961,6 +964,10 @@ addEventListener('resize', () => { const v = rootEl.style.getPropertyValue('--le
 // Full-screen passage: the passage column takes the whole window; the commentary panel is hidden.
 function setFull(on) {
   rootEl.classList.toggle('passage-full', on);
+  // In full screen the passage tools (bookmark, text size, full screen) move up beside the translation dropdown.
+  const tools = document.querySelector('.ref-tools');
+  if (on) document.querySelector('.brand').appendChild(tools);
+  else document.querySelector('.ref').appendChild(tools);
   const b = document.querySelector('.pfull');
   b.setAttribute('aria-pressed', String(on));
   b.querySelector('.lbl').textContent = on ? 'Exit full screen' : 'Full screen';
