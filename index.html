@@ -106,6 +106,9 @@ button, input { font: inherit; color: inherit; }
 .sugg-h { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); padding: 4px 8px 6px; }
 .sugg-list { display: grid; }
 .sugg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(46px, 1fr)); gap: 4px; }
+.sugg-books { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 4px; margin-bottom: 6px; }
+.sugg .sugg-books button { padding: 8px 10px; min-height: 38px; font-size: 14px; background: var(--chip); }
+.sugg { max-height: min(70vh, 520px); }
 .sugg button {
   border: 0; background: transparent; color: var(--ink); font: inherit; font-size: 15px; text-align: left;
   padding: 9px 10px; border-radius: 7px; cursor: pointer; min-height: 40px;
@@ -221,6 +224,7 @@ details[open] .chev { transform: rotate(180deg); }
 .note-sec h5, .cl-unit h5 { margin: 4px 0 0; font-size: 15px; font-weight: 700; line-height: 1.4; }
 .note-sec .pt { font-family: var(--font-ui); font-weight: 700; font-size: 15px; }
 .mh-part, .mh-full { display: grid; gap: 12px; }
+[hidden] { display: none !important; }
 .more { justify-self: start; border: 1px solid var(--line); background: var(--chip); color: var(--ink); border-radius: 8px; padding: 8px 12px; min-height: 40px; font-size: 14px; font-weight: 600; cursor: pointer; }
 /* Classic commentaries page: one titled section per commentary, each collapsible. */
 .cl-list { display: grid; gap: 28px; }
@@ -286,7 +290,7 @@ details.cl[open] > summary .chev { transform: rotate(180deg); }
     <form class="search" id="search-form" autocomplete="off">
       <label for="q" class="sr" style="position:absolute;left:-9999px">Passage</label>
       <div class="qwrap">
-        <input id="q" name="q" type="search" inputmode="text" placeholder="Start typing a book, e.g. John" enterkeyhint="search" spellcheck="false" autocapitalize="words"
+        <input id="q" name="q" type="search" inputmode="text" placeholder="Tap to pick a book, or type one" enterkeyhint="search" spellcheck="false" autocapitalize="words"
           role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="sugg">
         <div class="sugg" id="sugg" role="listbox" aria-label="Suggestions" hidden></div>
       </div>
@@ -797,36 +801,43 @@ NAME_KEYS.set('psalm', BY_NAME['Psalms']);
 const shortName = b => b.name === 'Psalms' ? 'Psalm' : b.name;
 const exactBook = s => NAME_KEYS.get(normBook(s)) || (/\s$/.test(s) ? findBook(s) : null);
 const sugg = $('sugg'), qIn = $('q');
-let sItems = [], sActive = -1, afterVerse = null;
+let sItems = [], sActive = -1, afterVerse = null, afterChapter = null;
 const range = (lo, hi) => Array.from({ length: Math.max(0, hi - lo + 1) }, (_, i) => lo + i);
+const one = (head, grid, items) => ({ sections: [{ head, grid, items }] });
+// Book choice: a whole chapter for one-chapter books (Jude, Obadiah…), otherwise the book name and its chapters.
+const bookItem = b => b.chapters.length === 1
+  ? { label: b.name, value: `${shortName(b)} 1`, chapter: true }
+  : { label: b.name, value: `${shortName(b)} ` };
+const verseList = (b, c, typed = '') => one(`${shortName(b)} ${c} · pick a verse, or Show for the whole chapter`, 'nums',
+  range(1, b.chapters[c - 1]).filter(x => String(x).startsWith(typed)).map(x => ({ label: String(x), value: `${shortName(b)} ${c}:${x}`, verse: true })));
 
 function suggestionsFor(raw) {
   const v = raw.replace(/[–—]/g, '-').replace(/^\s+/, '');
-  if (!v) return null;
+  // Empty box: every book, Old and New Testament.
+  if (!v) return { sections: [
+    { head: 'Old Testament', grid: 'books', items: INDEX.slice(0, 39).map(bookItem) },
+    { head: 'New Testament', grid: 'books', items: INDEX.slice(39).map(bookItem) },
+  ] };
   let m;
-  // "John 3:16-" → end verse
+  // "John 3:16-" (or a verse just picked) → end verse
   if ((m = v.match(/^(.*?[a-z.])\s*(\d+)\s*:\s*(\d+)\s*-\s*(\d*)$/i)) || (afterVerse && afterVerse === v && (m = v.match(/^(.*?[a-z.])\s*(\d+)\s*:\s*(\d+)()$/i)))) {
     const b = exactBook(m[1] + ' '); if (!b) return null;
     const c = +m[2], s = +m[3], n = b.chapters[c - 1]; if (!n || s >= n) return null;
-    const nums = range(s + 1, n).filter(x => String(x).startsWith(m[4]));
-    return { head: `${shortName(b)} ${c}:${s} through verse…`, grid: true,
-      items: nums.map(x => ({ label: String(x), value: `${shortName(b)} ${c}:${s}-${x}`, submit: true })) };
+    return one(`${shortName(b)} ${c}:${s} through verse… (or Show for just verse ${s})`, 'nums',
+      range(s + 1, n).filter(x => String(x).startsWith(m[4])).map(x => ({ label: String(x), value: `${shortName(b)} ${c}:${s}-${x}`, submit: true })));
   }
   // "John 3:" or "John 3:1" → verse
   if ((m = v.match(/^(.*?[a-z.])\s*(\d+)\s*:\s*(\d*)$/i))) {
-    const b = exactBook(m[1] + ' '); if (!b) return null;
-    const c = +m[2], n = b.chapters[c - 1]; if (!n) return null;
-    const nums = range(1, n).filter(x => String(x).startsWith(m[3]));
-    return { head: `${shortName(b)} ${c} · verse`, grid: true,
-      items: nums.map(x => ({ label: String(x), value: `${shortName(b)} ${c}:${x}`, verse: true })) };
+    const b = exactBook(m[1] + ' '); if (!b || !b.chapters[+m[2] - 1]) return null;
+    return verseList(b, +m[2], m[3]);
   }
-  // "John" or "John 3" → chapter
+  // "John" or "John 3" → chapter; a chapter that was just picked (or can't be anything longer) → its verses
   if ((m = v.match(/^(.*?[a-z.])(?:\s+(\d*))?$/i)) && exactBook(m[1] + (m[2] !== undefined ? ' ' : ''))) {
     const b = exactBook(m[1] + (m[2] !== undefined ? ' ' : ''));
     const typed = m[2] || '';
     const nums = range(1, b.chapters.length).filter(x => String(x).startsWith(typed));
-    return { head: `${shortName(b)} · chapter`, grid: true,
-      items: nums.map(x => ({ label: String(x), value: `${shortName(b)} ${x}:` })) };
+    if (typed && (afterChapter === v || (nums.length === 1 && String(nums[0]) === typed))) return verseList(b, +typed);
+    return one(`${shortName(b)} · chapter`, 'nums', nums.map(x => ({ label: String(x), value: `${shortName(b)} ${x}`, chapter: true })));
   }
   // otherwise → book names
   const k = normBook(v);
@@ -834,22 +845,25 @@ function suggestionsFor(raw) {
   const words = v.toLowerCase().trim();
   const books = INDEX.filter(b => normBook(b.name).startsWith(k) || b.name.toLowerCase().split(' ').some(w => w.startsWith(words)) || (ALIASES[k] === b.name));
   if (!books.length) return null;
-  return { head: 'Book', grid: false,
-    items: books.slice(0, 12).map(b => ({ label: b.name, meta: `${b.chapters.length} ch`, value: `${shortName(b)} ` })) };
+  return one('Book', 'list', books.slice(0, 12).map(b => ({ ...bookItem(b), meta: `${b.chapters.length} ch` })));
 }
 function renderSugg() {
   const s = suggestionsFor(qIn.value);
-  sItems = s ? s.items : []; sActive = -1;
+  const secs = s ? s.sections.filter(x => x.items.length) : [];
+  sItems = secs.flatMap(x => x.items); sActive = -1;
   if (!sItems.length || document.activeElement !== qIn) { closeSugg(); return; }
-  sugg.innerHTML = `<div class="sugg-h">${esc(s.head)}</div><div class="${s.grid ? 'sugg-grid' : 'sugg-list'}">${
-    sItems.map((it, i) => `<button type="button" role="option" id="sg-${i}" data-i="${i}" aria-selected="false" tabindex="-1">${esc(it.label)}${it.meta ? `<span class="meta">${esc(it.meta)}</span>` : ''}</button>`).join('')}</div>`;
+  let i = 0;
+  sugg.innerHTML = secs.map(sec => `<div class="sugg-h">${esc(sec.head)}</div><div class="${sec.grid === 'nums' ? 'sugg-grid' : sec.grid === 'books' ? 'sugg-books' : 'sugg-list'}">${
+    sec.items.map(it => { const n = i++; return `<button type="button" role="option" id="sg-${n}" data-i="${n}" aria-selected="false" tabindex="-1">${esc(it.label)}${it.meta ? `<span class="meta">${esc(it.meta)}</span>` : ''}</button>`; }).join('')}</div>`).join('');
   sugg.hidden = false; qIn.setAttribute('aria-expanded', 'true');
+  sugg.scrollTop = 0;
 }
 function closeSugg() { sugg.hidden = true; qIn.setAttribute('aria-expanded', 'false'); qIn.removeAttribute('aria-activedescendant'); sActive = -1; }
 function pick(i) {
   const it = sItems[i]; if (!it) return;
   qIn.value = it.value;
   afterVerse = it.verse ? it.value : null;
+  afterChapter = it.chapter ? it.value : null;
   if (it.submit) { closeSugg(); $('search-form').requestSubmit(); return; }
   qIn.focus(); renderSugg();
 }
@@ -859,12 +873,13 @@ function moveActive(d) {
   sugg.querySelectorAll('button').forEach((b, i) => b.setAttribute('aria-selected', String(i === sActive)));
   const el = $('sg-' + sActive); qIn.setAttribute('aria-activedescendant', el.id); el.scrollIntoView({ block: 'nearest' });
 }
-qIn.addEventListener('input', () => { afterVerse = null; renderSugg(); });
+qIn.addEventListener('input', () => { afterVerse = afterChapter = null; renderSugg(); });
 qIn.addEventListener('focus', renderSugg);
 qIn.addEventListener('blur', () => setTimeout(() => { if (document.activeElement !== qIn) closeSugg(); }, 120));
 qIn.addEventListener('keydown', e => {
-  const grid = sugg.querySelector('.sugg-grid');
-  const cols = grid ? Math.max(1, Math.round(grid.clientWidth / 50)) : 1;
+  const grid = sugg.querySelector('.sugg-grid, .sugg-books');
+  const cell = grid && grid.firstElementChild ? grid.firstElementChild.offsetWidth + 4 : 50;
+  const cols = grid ? Math.max(1, Math.round(grid.clientWidth / cell)) : 1;
   if (e.key === 'ArrowDown') { e.preventDefault(); moveActive(grid ? (sActive < 0 ? 1 : cols) : 1); }
   else if (e.key === 'ArrowUp') { e.preventDefault(); moveActive(grid ? -cols : -1); }
   else if (grid && e.key === 'ArrowRight' && sActive >= 0) { e.preventDefault(); moveActive(1); }
@@ -877,7 +892,7 @@ sugg.addEventListener('click', e => { const b = e.target.closest('button[data-i]
 
 $('search-form').addEventListener('submit', e => {
   e.preventDefault();
-  closeSugg(); afterVerse = null;
+  closeSugg(); afterVerse = afterChapter = null;
   const r = parseRef($('q').value);
   if (r.error) { $('err').textContent = r.error; return; }
   $('q').blur();
