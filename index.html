@@ -1404,12 +1404,25 @@ sugg.addEventListener('click', e => { const b = e.target.closest('button[data-i]
 $('search-form').addEventListener('submit', e => {
   e.preventDefault();
   closeSugg(); afterVerse = afterChapter = null;
+  if (!$('q').value.trim()) { $('q').blur(); goHome(); return; }
   const r = parseRef($('q').value);
   if (r.error) { $('err').textContent = r.error; return; }
   $('q').blur();
   show(r);
 });
 $('tr-select').addEventListener('change', e => setTranslation(e.target.value));
+// An empty search goes back to the blank start page.
+function goHome() {
+  current = null; closePop();
+  const pg = document.querySelector('details.c.page[open]');
+  if (pg) { pg.classList.remove('page'); document.documentElement.classList.remove('paged'); pg.open = false; }
+  if (document.documentElement.classList.contains('passage-full')) setFull(false);
+  $('err').textContent = ''; $('main').hidden = true; $('welcome').hidden = false;
+  $('text').innerHTML = ''; $('ref').textContent = '';
+  document.title = 'Bible Study Commentary';
+  try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+  scrollTo({ top: 0 });
+}
 window.addEventListener('hashchange', () => {
   const r = hashToRef(location.hash.slice(1)); if (!r) return;
   const pg = document.querySelector('details.c.page[open]');
