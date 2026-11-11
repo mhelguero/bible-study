@@ -161,6 +161,8 @@ sup.v { font-family: var(--font-ui); font-size: 11px; font-weight: 700; color: v
 .scripture .pout.s, .scripture .pout.s1, .scripture .pout.s2, .scripture .pout.d, .scripture .pout.r { opacity: .55; }
 .scripture .vt.focus { background: var(--hl-strong); }
 .scripture .v[role="button"] { cursor: pointer; border-radius: 4px; padding: 0 2px; }
+html.passage-full .scripture .vt { cursor: pointer; }
+html.passage-full .scripture .vt.hov { background: var(--hl-strong); -webkit-box-decoration-break: clone; box-decoration-break: clone; padding: .12em 0; }
 .scripture .v[role="button"]:hover, .scripture .v[role="button"]:focus-visible { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); outline: none; }
 .ctx-toggle { display: none; }
 @media (max-width: 1023px) {
@@ -714,7 +716,23 @@ function onVerse(v) {
   $('text').querySelectorAll(`.vt[data-v="${v}"]`).forEach(e => e.classList.add('focus'));
   focusCommentaries(v);
 }
-$('text').addEventListener('click', e => { const n = e.target.closest('.v[data-v]'); if (n) onVerse(+n.dataset.v); });
+// In the full-screen passage the whole verse is clickable: it leaves full screen and opens the last
+// commentary tab at that verse's notes.
+const fullPassage = () => isSplit() && document.documentElement.classList.contains('passage-full');
+$('text').addEventListener('click', e => {
+  const full = fullPassage();
+  const n = e.target.closest(full ? '.vt[data-v], .v[data-v]' : '.v[data-v]'); if (!n) return;
+  if (full && String(getSelection())) return; // selecting text, not clicking a verse
+  if (full) { setFull(false); ensureTab(); setTimeout(() => onVerse(+n.dataset.v), 60); return; }
+  onVerse(+n.dataset.v);
+});
+$('text').addEventListener('mouseover', e => {
+  if (!fullPassage()) return;
+  const n = e.target.closest('.vt[data-v], .v[data-v]');
+  $('text').querySelectorAll('.hov').forEach(x => x.classList.remove('hov'));
+  if (n) $('text').querySelectorAll(`.vt[data-v="${n.dataset.v}"]`).forEach(x => x.classList.add('hov'));
+});
+$('text').addEventListener('mouseleave', () => $('text').querySelectorAll('.hov').forEach(x => x.classList.remove('hov')));
 $('text').addEventListener('keydown', e => { const n = e.target.closest('.v[data-v]'); if (n && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onVerse(+n.dataset.v); } });
 function scrollPanel(target) {
   const body = target.closest('.c-body'); if (!body) return;
@@ -727,9 +745,17 @@ async function focusCommentaries(v) {
   const mh = [...$('mh-body').querySelectorAll('[data-a]')];
   const mhT = mh.find(e => !e.classList.contains('note-sec') && +e.dataset.a === v) || mh.find(e => !e.classList.contains('note-sec') && covers(e, v)) || mh.find(e => covers(e, v));
   if (mhT && $('c-mh').open) scrollPanel(mhT);
-  // classics: the first note on that verse in an open commentary
-  const cl = [...$('cl-body').querySelectorAll('details.cl[open] .cl-unit[data-a]')].find(e => +e.dataset.a > 0 && covers(e, v));
-  if (cl && $('c-cl').open) scrollPanel(cl);
+  // classics: the first note on that verse in an open commentary; if none is open, open the first one with a note
+  if ($('c-cl').open) {
+    const find = () => [...$('cl-body').querySelectorAll('details.cl[open] .cl-unit[data-a]')].find(e => +e.dataset.a > 0 && covers(e, v));
+    let cl = find();
+    if (!cl) {
+      const r0 = current, ranges = await loadClRanges(r0.book.slug) || {};
+      const det = [...$('cl-body').querySelectorAll('details.cl')].find(d => ((ranges[d.dataset.code] || {})[r0.c1] || []).some(u => u[0] > 0 && u[0] <= v && v <= u[1]));
+      if (det) { det.open = true; await fillCl(det); cl = find(); }
+    }
+    if (cl) scrollPanel(cl);
+  }
   // Enduring Word: the section covering the verse
   const secs = await loadEWSections(), r = current;
   const s = (secs[`${r.book.slug}-${r.c1}`] || []).find(x => x[1] <= v && v <= x[2]);
