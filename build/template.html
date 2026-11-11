@@ -222,9 +222,7 @@ details[open] .chev { transform: rotate(180deg); }
 .note-sec .pt { font-family: var(--font-ui); font-weight: 700; font-size: 15px; }
 .mh-part, .mh-full { display: grid; gap: 12px; }
 .more { justify-self: start; border: 1px solid var(--line); background: var(--chip); color: var(--ink); border-radius: 8px; padding: 8px 12px; min-height: 40px; font-size: 14px; font-weight: 600; cursor: pointer; }
-/* Classic commentaries page: one titled section per commentary, all open, with a Jump to row on top. */
-.cl-jump { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.cl-jump a { border: 1px solid var(--line); background: var(--chip); color: var(--ink); border-radius: 999px; padding: 5px 12px; font-size: 13px; font-weight: 600; text-decoration: none; }
+/* Classic commentaries page: one titled section per commentary, each collapsible. */
 .cl-list { display: grid; gap: 28px; }
 details.cl { scroll-margin-top: 8px; }
 details.cl > summary {
@@ -583,8 +581,7 @@ async function renderCL() {
   const have = CLASSICS.filter(([code]) => (idx[code] || []).includes(r.book.slug)
     && (!ranges || clHasNote((ranges[code] || {})[r.c1], r)));
   const more = `https://biblehub.com/commentaries/${bhBook(r.book)}/${r.c1}-${r.v1}.htm`;
-  $('cl-body').innerHTML = `${have.length > 1 ? `<nav class="cl-jump" aria-label="Commentaries"><span class="small">Jump to</span>${
-      have.map(([code, name]) => `<a href="#cl-${code}" data-code="${code}">${esc(name.replace(/'s (Notes|Commentary|Annotations|Commentaries)$/, ''))}</a>`).join('')}</nav>` : ''}
+  $('cl-body').innerHTML = `
     <div class="cl-list">${have.map(([code, name, by]) => `
     <details class="cl" id="cl-${code}" data-code="${code}">
       <summary><span><span class="nm">${esc(name)}</span><span class="meta">${esc(by)}</span></span>
@@ -594,14 +591,9 @@ async function renderCL() {
     <div class="cl-more"><a class="link-btn" href="${more}" target="_blank" rel="noopener">More commentaries on Bible Hub ↗</a></div>`;
   if ($('c-cl').open) fillAllCl();
 }
-// Each commentary starts closed; its text is fetched when it is opened (or jumped to).
+// Each commentary starts closed; its text is fetched when it is opened.
 function fillAllCl() { $('cl-body').querySelectorAll('details.cl[open]').forEach(fillCl); }
 $('c-cl').addEventListener('toggle', () => { if ($('c-cl').open) fillAllCl(); });
-$('cl-body').addEventListener('click', e => {
-  const a = e.target.closest('.cl-jump a'); if (!a) return;
-  e.preventDefault();
-  const d = $('cl-' + a.dataset.code); d.open = true; d.scrollIntoView({ block: 'start', behavior: 'smooth' });
-});
 async function fillCl(d) {
   const r = current, box = d.querySelector('.cl-notes');
   if (box.dataset.ref === refHash(r)) return;
