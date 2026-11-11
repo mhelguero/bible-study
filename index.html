@@ -681,10 +681,9 @@ async function renderCL() {
   const have = CLASSICS.filter(([code]) => (idx[code] || []).includes(r.book.slug)
     && (!ranges || clHasNote((ranges[code] || {})[r.c1], r)));
   const more = `https://biblehub.com/commentaries/${bhBook(r.book)}/${r.c1}-${r.v1}.htm`;
-  const startOpen = matchMedia('(min-width: 900px)').matches; // open on desktop, closed on phones
   $('cl-body').innerHTML = `
     <div class="cl-list">${have.map(([code, name, by]) => `
-    <details class="cl" id="cl-${code}" data-code="${code}"${startOpen ? ' open' : ''}>
+    <details class="cl" id="cl-${code}" data-code="${code}">
       <summary><span><span class="nm">${esc(name)}</span><span class="meta">${esc(by)}</span></span>
         <span class="chev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M3 5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></summary>
       <div class="cl-notes"></div>
@@ -692,7 +691,7 @@ async function renderCL() {
     <div class="cl-more"><a class="link-btn" href="${more}" target="_blank" rel="noopener">More commentaries on Bible Hub ↗</a></div>`;
   if ($('c-cl').open) fillAllCl();
 }
-// Each commentary's text is fetched when it is open (on desktop they all start open).
+// Each commentary starts closed; its text is fetched when it is opened.
 function fillAllCl() { $('cl-body').querySelectorAll('details.cl[open]').forEach(fillCl); }
 $('c-cl').addEventListener('toggle', () => { if ($('c-cl').open) fillAllCl(); });
 async function fillCl(d) {
