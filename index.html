@@ -30,6 +30,7 @@
   --bh: #2f5d8a;
   --mh: #4d6b3a;
   --chip: #eef0ea;
+  --hl: #fbe7a1; --hl-strong: #f6cf5a; /* highlighter yellow for searched verses */
   --font-scripture: "Source Serif 4", Georgia, "Times New Roman", serif;
   --font-ui: "Figtree", -apple-system, "Segoe UI", Roboto, sans-serif;
   color-scheme: light;
@@ -39,12 +40,14 @@
     --paper: #14171e; --surface: #1c2029; --ink: #e7e9ee; --muted: #9aa1b0; --line: #2d3240;
     --accent: #8fb0e8; --accent-ink: #10141c; --red: #ef8a7f; --ew: #d9937f; --bh: #8db6de; --mh: #a5c78e;
     --chip: #252a35; color-scheme: dark;
+    --hl: rgba(250, 204, 21, .2); --hl-strong: rgba(250, 204, 21, .38);
   }
 }
 :root[data-theme="dark"] {
   --paper: #14171e; --surface: #1c2029; --ink: #e7e9ee; --muted: #9aa1b0; --line: #2d3240;
   --accent: #8fb0e8; --accent-ink: #10141c; --red: #ef8a7f; --ew: #d9937f; --bh: #8db6de; --mh: #a5c78e;
   --chip: #252a35; color-scheme: dark;
+  --hl: rgba(250, 204, 21, .2); --hl-strong: rgba(250, 204, 21, .38);
 }
 
 * { box-sizing: border-box; }
@@ -148,8 +151,15 @@ sup.v { font-family: var(--font-ui); font-size: 11px; font-weight: 700; color: v
 .scripture .q2, .scripture .pi2 { padding-left: 2.4em; text-indent: -.6em; margin: 0; }
 .scripture .b { height: .6em; }
 /* searched verses highlighted inside the whole chapter */
-.scripture .vt.in { background: color-mix(in srgb, var(--accent) 10%, transparent); -webkit-box-decoration-break: clone; box-decoration-break: clone; }
-.scripture .vt.focus { background: color-mix(in srgb, var(--accent) 30%, transparent); }
+.scripture .vt.in {
+  background: var(--hl); padding: .12em 0;
+  -webkit-box-decoration-break: clone; box-decoration-break: clone;
+}
+.scripture .v.vin { color: var(--ink); }
+/* the rest of the chapter steps back so the searched verses stand out */
+.scripture .vt.out, .scripture .v.vout { opacity: .55; }
+.scripture .pout.s, .scripture .pout.s1, .scripture .pout.s2, .scripture .pout.d, .scripture .pout.r { opacity: .55; }
+.scripture .vt.focus { background: var(--hl-strong); }
 .scripture .v[role="button"] { cursor: pointer; border-radius: 4px; padding: 0 2px; }
 .scripture .v[role="button"]:hover, .scripture .v[role="button"]:focus-visible { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); outline: none; }
 .ctx-toggle { display: none; }
