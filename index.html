@@ -109,7 +109,10 @@ button, input { font: inherit; color: inherit; }
 .sugg-h { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); padding: 4px 8px 6px; }
 .sugg-list { display: grid; }
 .sugg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(46px, 1fr)); gap: 4px; }
-.sugg-books { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 4px; margin-bottom: 6px; }
+.sugg-books { /* two columns that run downwards, in Bible order (Matthew, Mark, Luke… under each other) */
+  display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(var(--rows, 20), auto); grid-auto-flow: column;
+  gap: 4px; margin-bottom: 6px;
+}
 .sugg .sugg-books button { padding: 8px 10px; min-height: 38px; font-size: 14px; background: var(--chip); }
 .sugg { max-height: min(70vh, 520px); }
 .sugg button {
@@ -165,9 +168,12 @@ html.passage-full .scripture .vt { cursor: pointer; }
 html.passage-full .scripture .vt.hov { background: var(--hl-strong); -webkit-box-decoration-break: clone; box-decoration-break: clone; padding: .12em 0; }
 .scripture .v[role="button"]:hover, .scripture .v[role="button"]:focus-visible { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); outline: none; }
 .ctx-toggle { display: none; }
+@media (max-width: 1023px) { .comms > .vnav:not(.vnav-bottom) { display: none; } }
 @media (max-width: 1023px) {
   #text.ctx-hide .pout, #text.ctx-hide .vt.out, #text.ctx-hide .v.vout { display: none; }
   #text.ctx-hide .vt.in { background: none; } /* only the searched verses are showing */
+  #text .vt.focus, #text.ctx-hide .vt.in.focus { background: var(--hl-strong); -webkit-box-decoration-break: clone; box-decoration-break: clone; padding: .12em 0; }
+  #text .vt { cursor: pointer; }
   .ctx-toggle:not([hidden]) {
     display: inline-flex; margin-top: 4px; border: 1px solid var(--line); background: var(--surface); color: var(--ink);
     border-radius: 8px; padding: 8px 12px; min-height: 40px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
@@ -429,7 +435,7 @@ details.cl[open] > summary .chev { transform: rotate(180deg); }
           role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="sugg">
         <div class="sugg" id="sugg" role="listbox" aria-label="Suggestions" hidden></div>
       </div>
-      <button class="btn" type="submit" id="go">Show</button>
+      <button class="btn" type="submit" id="go">Search</button>
     </form>
     <p class="error" id="err"></p>
   </div>
@@ -657,7 +663,7 @@ async function renderText() {
       : e.status === 403 ? 'Your API.Bible plan does not include this translation.'
       : e.status === 429 ? 'Too many requests to API.Bible right now. Wait a minute and try again.'
       : e.status === 404 ? 'This translation does not have that passage.'
-      : 'The passage could not be loaded. Check your connection and press Show again.';
+      : 'The passage could not be loaded. Check your connection and press Search again.';
     $('text').innerHTML = `<p class="error">${msg}</p>`;
   }
 }
@@ -712,28 +718,34 @@ function markVersesToggle() {
 }
 // Clicking a verse number: outside the searched verses it opens that verse; inside them it points the
 // commentaries at it (Henry's and the classics' notes scroll to it, Enduring Word goes to its section).
-function onVerse(v) {
+// The verse picked in the passage (null = none). Picking it again clears it.
+let selVerse = null;
+function clearVerse() { selVerse = null; $('text').querySelectorAll('.vt.focus').forEach(e => e.classList.remove('focus')); }
+function onVerse(v, toggle = true) {
   const r = current; if (!r) return;
   if (v < r.v1 || v > r.v2) { location.hash = refHash({ book: r.book, c1: r.c1, v1: v, c2: r.c1, v2: v }); return; }
-  $('text').querySelectorAll('.vt.focus').forEach(e => e.classList.remove('focus'));
+  if (toggle && selVerse === v) { clearVerse(); return; }
+  clearVerse(); selVerse = v;
   $('text').querySelectorAll(`.vt[data-v="${v}"]`).forEach(e => e.classList.add('focus'));
   focusCommentaries(v);
+  // phones: go down to the commentary cards; whichever one is opened next starts at this verse
+  if (!isSplit()) document.querySelector('.comms').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 // In the full-screen passage the whole verse is clickable: it leaves full screen and opens the last
 // commentary tab at that verse's notes.
 const fullPassage = () => isSplit() && document.documentElement.classList.contains('passage-full');
 $('text').addEventListener('click', e => {
-  const full = fullPassage();
-  let n = e.target.closest(full ? '.vt[data-v], .v[data-v]' : '.v[data-v]');
-  if (!n && full) { // a click between words or at the end of a line: use the text nearest the pointer
+  const full = fullPassage(), anyText = full || !isSplit(); // phones: the whole verse text can be tapped
+  let n = e.target.closest(anyText ? '.vt[data-v], .v[data-v]' : '.v[data-v]');
+  if (!n && anyText) { // a click between words or at the end of a line: use the text nearest the pointer
     const pos = document.caretPositionFromPoint ? document.caretPositionFromPoint(e.clientX, e.clientY)
       : document.caretRangeFromPoint ? document.caretRangeFromPoint(e.clientX, e.clientY) : null;
     const node = pos && (pos.offsetNode || pos.startContainer);
     n = node && (node.nodeType === 3 ? node.parentElement : node).closest('.vt[data-v], .v[data-v]');
   }
   if (!n) return;
-  if (full && String(getSelection())) return; // selecting text, not clicking a verse
-  if (full) { setFull(false); ensureTab(); setTimeout(() => onVerse(+n.dataset.v), 60); return; }
+  if (anyText && String(getSelection())) return; // selecting text, not clicking a verse
+  if (full) { setFull(false); ensureTab(); setTimeout(() => onVerse(+n.dataset.v, false), 60); return; }
   onVerse(+n.dataset.v);
 });
 $('text').addEventListener('mouseover', e => {
@@ -998,6 +1010,7 @@ document.querySelectorAll('details.c').forEach(d => d.addEventListener('toggle',
     document.querySelectorAll('details.c[open]').forEach(o => { if (o !== d) o.open = false; });
     d.classList.add('page'); document.documentElement.classList.add('paged'); setSumH(d);
     d.querySelector('.c-body').scrollTop = 0;
+    if (selVerse) { const v = selVerse; setTimeout(() => { if (d.open && selVerse === v) focusCommentaries(v); }, 120); }
     try { history.pushState({ panel: d.id }, ''); } catch (e) {}
   } else if (d.classList.contains('page')) {
     d.classList.remove('page'); document.documentElement.classList.remove('paged');
@@ -1251,7 +1264,7 @@ async function renderMH() {
   $('mh-body').innerHTML = '<p class="small">Loading Matthew Henry…</p>';
   let d;
   try { d = await loadMH(r.book); } catch (e) {
-    $('mh-body').innerHTML = '<p class="error">Matthew Henry could not be loaded. Check your connection and press Show again.</p>'; return;
+    $('mh-body').innerHTML = '<p class="error">Matthew Henry could not be loaded. Check your connection and press Search again.</p>'; return;
   }
   if (current !== r) return;
   const nm = r.book.name === 'Psalms' ? 'Psalm' : r.book.name;
@@ -1300,7 +1313,7 @@ async function show(r, push = true) {
   document.title = `${refLabel(r)} · Bible Study Commentary`;
   $('q').value = refLabel(r).replace('–', '-');
   if (push) { try { history.replaceState(null, '', '#' + refHash(r)); } catch (e) { location.hash = refHash(r); } }
-  showCtx = false; addRecent(r); syncBm();
+  showCtx = false; selVerse = null; addRecent(r); syncBm(); closeSugg();
   renderText(); renderMH(); renderEW(); renderCL(); renderNav(); ensureTab();
 }
 
@@ -1324,7 +1337,7 @@ const one = (head, grid, items) => ({ sections: [{ head, grid, items }] });
 const bookItem = b => b.chapters.length === 1
   ? { label: b.name, value: `${shortName(b)} 1`, chapter: true }
   : { label: b.name, value: `${shortName(b)} ` };
-const verseList = (b, c, typed = '') => one(`${shortName(b)} ${c} · pick a verse, or Show for the whole chapter`, 'nums',
+const verseList = (b, c, typed = '') => one(`${shortName(b)} ${c} · pick a verse, or Search for the whole chapter`, 'nums',
   range(1, b.chapters[c - 1]).filter(x => String(x).startsWith(typed)).map(x => ({ label: String(x), value: `${shortName(b)} ${c}:${x}`, verse: true })));
 
 function suggestionsFor(raw) {
@@ -1341,7 +1354,7 @@ function suggestionsFor(raw) {
   if ((m = v.match(/^(.*?[a-z.])\s*(\d+)\s*:\s*(\d+)\s*-\s*(\d*)$/i)) || (afterVerse && afterVerse === v && (m = v.match(/^(.*?[a-z.])\s*(\d+)\s*:\s*(\d+)()$/i)))) {
     const b = exactBook(m[1] + ' '); if (!b) return null;
     const c = +m[2], s = +m[3], n = b.chapters[c - 1]; if (!n || s >= n) return null;
-    return one(`${shortName(b)} ${c}:${s} through verse… (or Show for just verse ${s})`, 'nums',
+    return one(`${shortName(b)} ${c}:${s} through verse… (or Search for just verse ${s})`, 'nums',
       range(s + 1, n).filter(x => String(x).startsWith(m[4])).map(x => ({ label: String(x), value: `${shortName(b)} ${c}:${s}-${x}`, submit: true })));
   }
   // "John 3:" or "John 3:1" → verse
@@ -1371,7 +1384,7 @@ function renderSugg() {
   sItems = secs.flatMap(x => x.items); sActive = -1;
   if (!sItems.length || document.activeElement !== qIn) { closeSugg(); return; }
   let i = 0;
-  sugg.innerHTML = secs.map(sec => `<div class="sugg-h">${esc(sec.head)}</div><div class="${sec.grid === 'nums' ? 'sugg-grid' : sec.grid === 'books' ? 'sugg-books' : 'sugg-list'}">${
+  sugg.innerHTML = secs.map(sec => `<div class="sugg-h">${esc(sec.head)}</div><div class="${sec.grid === 'nums' ? 'sugg-grid' : sec.grid === 'books' ? 'sugg-books' : 'sugg-list'}"${sec.grid === 'books' ? ` style="--rows:${Math.ceil(sec.items.length / 2)}"` : ''}>${
     sec.items.map(it => { const n = i++; return `<button type="button" role="option" id="sg-${n}" data-i="${n}" aria-selected="false" tabindex="-1">${esc(it.label)}${it.meta ? `<span class="meta">${esc(it.meta)}</span>` : ''}</button>`; }).join('')}</div>`).join('');
   sugg.hidden = false; qIn.setAttribute('aria-expanded', 'true');
   sugg.scrollTop = 0;
@@ -1395,7 +1408,7 @@ qIn.addEventListener('input', () => { afterVerse = afterChapter = null; renderSu
 qIn.addEventListener('focus', renderSugg);
 qIn.addEventListener('blur', () => setTimeout(() => { if (document.activeElement !== qIn) closeSugg(); }, 120));
 qIn.addEventListener('keydown', e => {
-  const grid = sugg.querySelector('.sugg-grid, .sugg-books');
+  const grid = sugg.querySelector('.sugg-grid'); // book columns run downwards, so arrows move one book at a time
   const cell = grid && grid.firstElementChild ? grid.firstElementChild.offsetWidth + 4 : 50;
   const cols = grid ? Math.max(1, Math.round(grid.clientWidth / cell)) : 1;
   if (e.key === 'ArrowDown') { e.preventDefault(); moveActive(grid ? (sActive < 0 ? 1 : cols) : 1); }
