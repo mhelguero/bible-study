@@ -168,6 +168,11 @@ html.passage-full .scripture .vt { cursor: pointer; }
 html.passage-full .scripture .vt.hov { background: var(--hl-strong); -webkit-box-decoration-break: clone; box-decoration-break: clone; padding: .12em 0; }
 .scripture .v[role="button"]:hover, .scripture .v[role="button"]:focus-visible { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); outline: none; }
 .ctx-toggle { display: none; }
+.vnav.vnav-top { display: none; }
+@media (max-width: 1023px) {
+  .vnav.vnav-top:not(:empty) { display: flex; } /* phones: previous / next chapter under the search bar */
+  .vnav-top button { min-height: 36px; padding: 6px 12px; }
+}
 @media (max-width: 1023px) { .comms > .vnav:not(.vnav-bottom) { display: none; } }
 @media (max-width: 1023px) {
   #text.ctx-hide .pout, #text.ctx-hide .vt.out, #text.ctx-hide .v.vout { display: none; }
@@ -438,6 +443,7 @@ details.cl[open] > summary .chev { transform: rotate(180deg); }
       <button class="btn" type="submit" id="go">Search</button>
     </form>
     <p class="error" id="err"></p>
+    <nav class="vnav vnav-top" aria-label="Previous and next chapter"></nav>
   </div>
 </header>
 
@@ -1433,6 +1439,7 @@ $('search-form').addEventListener('submit', e => {
 $('tr-select').addEventListener('change', e => setTranslation(e.target.value));
 // An empty search goes back to the blank start page.
 function goHome() {
+  document.querySelectorAll('.vnav').forEach(n => { n.innerHTML = ''; });
   current = null; closePop();
   const pg = document.querySelector('details.c.page[open]');
   if (pg) { pg.classList.remove('page'); document.documentElement.classList.remove('paged'); pg.open = false; }
