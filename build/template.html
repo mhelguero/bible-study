@@ -724,7 +724,14 @@ function onVerse(v) {
 const fullPassage = () => isSplit() && document.documentElement.classList.contains('passage-full');
 $('text').addEventListener('click', e => {
   const full = fullPassage();
-  const n = e.target.closest(full ? '.vt[data-v], .v[data-v]' : '.v[data-v]'); if (!n) return;
+  let n = e.target.closest(full ? '.vt[data-v], .v[data-v]' : '.v[data-v]');
+  if (!n && full) { // a click between words or at the end of a line: use the text nearest the pointer
+    const pos = document.caretPositionFromPoint ? document.caretPositionFromPoint(e.clientX, e.clientY)
+      : document.caretRangeFromPoint ? document.caretRangeFromPoint(e.clientX, e.clientY) : null;
+    const node = pos && (pos.offsetNode || pos.startContainer);
+    n = node && (node.nodeType === 3 ? node.parentElement : node).closest('.vt[data-v], .v[data-v]');
+  }
+  if (!n) return;
   if (full && String(getSelection())) return; // selecting text, not clicking a verse
   if (full) { setFull(false); ensureTab(); setTimeout(() => onVerse(+n.dataset.v), 60); return; }
   onVerse(+n.dataset.v);
