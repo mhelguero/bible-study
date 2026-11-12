@@ -8,13 +8,11 @@ Henry's complete commentary, side by side on desktop and as full-screen pages on
 
 ## Demo
 
-**Desktop** (1½ minutes): click the picture to watch.
+Demo video: *coming soon (YouTube link here)*
 
-[![Desktop demo: John 3:16–21 with the passage on the left and Matthew Henry on the right](docs/demo/desktop.png)](docs/demo/desktop.mp4)
+![Desktop: John 3:16–21 with the passage on the left and Matthew Henry on the right](docs/demo/desktop.png)
 
-**Phone** (30 seconds)
-
-[<img src="docs/demo/phone.png" alt="Phone demo: Matthew Henry on Psalm 23 with a verse preview" width="260">](docs/demo/phone.mp4)
+<img src="docs/demo/phone.png" alt="Phone: Matthew Henry on Psalm 23 with a verse preview" width="260">
 
 ## What it does
 
